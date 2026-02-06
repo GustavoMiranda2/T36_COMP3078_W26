@@ -51,4 +51,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self) -> str:
         return self.email
 
-# Create your models here.
+
+class Service(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    duration_minutes = models.PositiveIntegerField()
+    price_cents = models.PositiveIntegerField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["is_active"])]
+
+    def __str__(self) -> str:
+        return self.name

@@ -1,10 +1,17 @@
 from django.db import IntegrityError
-from rest_framework import status
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer, UserSerializer
+from .models import Service
+from .serializers import (
+    CustomTokenObtainPairSerializer,
+    RegisterSerializer,
+    ServiceSerializer,
+    UserSerializer,
+)
 
 
 class RegisterView(APIView):
@@ -27,4 +34,10 @@ class RegisterView(APIView):
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-# Create your views here.
+
+class ServiceListView(generics.ListAPIView):
+    serializer_class = ServiceSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return Service.objects.filter(is_active=True).order_by("name")
