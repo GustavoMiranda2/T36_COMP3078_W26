@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import prisma from '../lib/prisma';
+import { signJwt } from '../utils/jwt';
 import { hashPassword, verifyPassword } from '../utils/password';
 
 export async function authRoutes(app: FastifyInstance) {
@@ -51,7 +52,8 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: 'Invalid credentials.' });
     }
 
+    const token = signJwt({ userId: user.id, role: user.role });
     const { passwordHash, ...safeUser } = user;
-    return reply.send({ user: safeUser });
+    return reply.send({ token, user: safeUser });
   });
 }
