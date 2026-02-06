@@ -2,6 +2,7 @@ import uuid
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -66,3 +67,36 @@ class Service(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class AppointmentStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    CONFIRMED = "CONFIRMED", "Confirmed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+class Appointment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User, related_name="appointments", on_delete=models.CASCADE
+    )
+    service = models.ForeignKey(Service, on_delete=models.PROTECT)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    status = models.CharField(
+        max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.PENDING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["start_time"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def clean(self):
+        if self.end_time <= self.start_time:
+            raise ValidationError({"end_time": "end_time must be after start_time."})
+
+    def __str__(self) -> str:
+        return f"{self.user.email} - {self.service.name} @ {self.start_time}"
