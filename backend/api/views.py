@@ -3,6 +3,7 @@ from datetime import datetime, time, timedelta
 from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,10 +20,57 @@ from .serializers import (
     UserSerializer,
 )
 
+BUSINESS_START = time(10, 0)
+BUSINESS_END = time(19, 0)
+SLOT_MINUTES = 15
+
+
+def _parse_date_param(value: str | None):
+    if not value:
+        raise ValidationError({"date": "date query parameter is required (YYYY-MM-DD)."})
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValidationError({"date": "date must be in YYYY-MM-DD format."}) from exc
+
+
+def _is_aligned_to_grid(value: time, minutes: int = SLOT_MINUTES) -> bool:
+    return value.minute % minutes == 0 and value.second == 0 and value.microsecond == 0
+
+
+def _ensure_aligned(value: time):
+    if not _is_aligned_to_grid(value):
+        raise ValidationError({"start_time": "start_time must align to a 15-minute grid."})
+
+
+def _ensure_within_business_hours(start_dt: datetime, end_dt: datetime):
+    day_start = datetime.combine(start_dt.date(), BUSINESS_START, tzinfo=start_dt.tzinfo)
+    day_end = datetime.combine(start_dt.date(), BUSINESS_END, tzinfo=start_dt.tzinfo)
+    if start_dt < day_start or end_dt > day_end:
+        raise ValidationError(
+            {"start_time": "start_time must be within business hours (10:00-19:00)."}
+        )
+
+
+def _get_active_service(service_id):
+    service = Service.objects.filter(id=service_id, is_active=True).first()
+    if not service:
+        raise ValidationError({"service_id": "Service not found or inactive."})
+    return service
+
+
+def _ensure_no_conflict(start_dt: datetime, end_dt: datetime, exclude_id=None):
+    qs = Appointment.objects.exclude(status=AppointmentStatus.CANCELLED)
+    if exclude_id:
+        qs = qs.exclude(id=exclude_id)
+    conflict = qs.filter(start_time__lt=end_dt, end_time__gt=start_dt).exists()
+    if conflict:
+        raise ValidationError({"detail": "Requested time overlaps an existing appointment."})
+
 
 class RegisterView(APIView):
     authentication_classes = []
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -30,15 +78,13 @@ class RegisterView(APIView):
         try:
             user = serializer.save()
         except IntegrityError:
-            return Response(
-                {"detail": "Email already registered."},
-                status=status.HTTP_409_CONFLICT,
-            )
+            raise ValidationError({"email": "Email already registered."})
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = [AllowAny]
 
 
 class ServiceListView(generics.ListAPIView):
@@ -54,35 +100,22 @@ class AvailabilityView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        date_str = request.query_params.get("date")
-        if not date_str:
-            return Response(
-                {"detail": "date query parameter is required (YYYY-MM-DD)."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            return Response(
-                {"detail": "date must be in YYYY-MM-DD format."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        target_date = _parse_date_param(request.query_params.get("date"))
 
         tz = timezone.get_current_timezone()
-        day_start = datetime.combine(target_date, time(10, 0))
-        day_end = datetime.combine(target_date, time(19, 0))
-        slot_minutes = 15
+        day_start = datetime.combine(target_date, BUSINESS_START)
+        day_end = datetime.combine(target_date, BUSINESS_END)
 
         slots = []
         current = day_start
-        while current + timedelta(minutes=slot_minutes) <= day_end:
+        while current + timedelta(minutes=SLOT_MINUTES) <= day_end:
             slots.append(current)
-            current += timedelta(minutes=slot_minutes)
+            current += timedelta(minutes=SLOT_MINUTES)
 
         slot_windows = [
             (
                 timezone.make_aware(slot, tz),
-                timezone.make_aware(slot + timedelta(minutes=slot_minutes), tz),
+                timezone.make_aware(slot + timedelta(minutes=SLOT_MINUTES), tz),
             )
             for slot in slots
         ]
@@ -108,25 +141,12 @@ class AvailabilityView(APIView):
         )
 
 
-def _is_aligned_to_grid(value: time, minutes: int = 15) -> bool:
-    return value.minute % minutes == 0 and value.second == 0 and value.microsecond == 0
-
-
-def _within_business_hours(start_dt: datetime, end_dt: datetime) -> bool:
-    day_start = datetime.combine(start_dt.date(), time(10, 0), tzinfo=start_dt.tzinfo)
-    day_end = datetime.combine(start_dt.date(), time(19, 0), tzinfo=start_dt.tzinfo)
-    return start_dt >= day_start and end_dt <= day_end
-
-
 class AppointmentListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         if request.query_params.get("me") != "true":
-            return Response(
-                {"detail": "Query parameter me=true is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError({"me": "Query parameter me=true is required."})
         appointments = (
             Appointment.objects.filter(user=request.user)
             .select_related("service")
@@ -141,45 +161,17 @@ class AppointmentListCreateView(APIView):
         serializer = AppointmentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        service = Service.objects.filter(
-            id=serializer.validated_data["service_id"], is_active=True
-        ).first()
-        if not service:
-            return Response(
-                {"detail": "Service not found or inactive."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        service = _get_active_service(serializer.validated_data["service_id"])
 
         tz = timezone.get_current_timezone()
         date_value = serializer.validated_data["date"]
         time_value = serializer.validated_data["start_time"]
 
-        if not _is_aligned_to_grid(time_value):
-            return Response(
-                {"detail": "start_time must align to a 15-minute grid."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        _ensure_aligned(time_value)
         start_dt = timezone.make_aware(datetime.combine(date_value, time_value), tz)
         end_dt = start_dt + timedelta(minutes=service.duration_minutes)
-
-        if not _within_business_hours(start_dt, end_dt):
-            return Response(
-                {"detail": "start_time must be within business hours."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        conflict = Appointment.objects.exclude(
-            status=AppointmentStatus.CANCELLED
-        ).filter(
-            start_time__lt=end_dt,
-            end_time__gt=start_dt,
-        ).exists()
-        if conflict:
-            return Response(
-                {"detail": "Requested time overlaps an existing appointment."},
-                status=status.HTTP_409_CONFLICT,
-            )
+        _ensure_within_business_hours(start_dt, end_dt)
+        _ensure_no_conflict(start_dt, end_dt)
 
         appointment = Appointment.objects.create(
             user=request.user,
@@ -220,34 +212,11 @@ class AppointmentUpdateView(APIView):
         date_value = serializer.validated_data["date"]
         time_value = serializer.validated_data["start_time"]
 
-        if not _is_aligned_to_grid(time_value):
-            return Response(
-                {"detail": "start_time must align to a 15-minute grid."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        _ensure_aligned(time_value)
         start_dt = timezone.make_aware(datetime.combine(date_value, time_value), tz)
         end_dt = start_dt + timedelta(minutes=appointment.service.duration_minutes)
-
-        if not _within_business_hours(start_dt, end_dt):
-            return Response(
-                {"detail": "start_time must be within business hours."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        conflict = Appointment.objects.exclude(
-            status=AppointmentStatus.CANCELLED
-        ).exclude(
-            id=appointment.id
-        ).filter(
-            start_time__lt=end_dt,
-            end_time__gt=start_dt,
-        ).exists()
-        if conflict:
-            return Response(
-                {"detail": "Requested time overlaps an existing appointment."},
-                status=status.HTTP_409_CONFLICT,
-            )
+        _ensure_within_business_hours(start_dt, end_dt)
+        _ensure_no_conflict(start_dt, end_dt, exclude_id=appointment.id)
 
         appointment.start_time = start_dt
         appointment.end_time = end_dt

@@ -32,3 +32,28 @@ Example:
 DEBUG=true
 SECRET_KEY=django-secret-key
 DATABASE_URL=postgres://user:password@localhost:5432/capstone_db
+ALLOWED_HOSTS=localhost,127.0.0.1
+```
+
+---
+
+## Authentication Flow
+- `POST /auth/register` creates a user with email + password.
+- `POST /auth/login` returns `access` and `refresh` JWTs and user data.
+- All appointment endpoints require `Authorization: Bearer <access-token>`.
+
+---
+
+## Appointment Lifecycle
+- `POST /appointments` creates a confirmed appointment.
+- `GET /appointments?me=true` returns the authenticated user's appointments.
+- `PATCH /appointments/<id>` with `{ "action": "cancel" }` cancels the appointment.
+- `PATCH /appointments/<id>` with `{ "action": "reschedule", "date": "YYYY-MM-DD", "start_time": "HH:MM" }`
+  reschedules the appointment if the slot is available.
+
+---
+
+## Business Hours
+- Slots are in 15-minute increments.
+- Business hours are 10:00 to 19:00.
+- The last slot starts at 18:45.

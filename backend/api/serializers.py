@@ -10,7 +10,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "email", "role", "is_active", "is_staff", "created_at")
+        fields = ("id", "email", "role", "is_active", "created_at")
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -56,14 +56,23 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 class AppointmentCreateSerializer(serializers.Serializer):
     service_id = serializers.UUIDField()
-    date = serializers.DateField()
-    start_time = serializers.TimeField()
+    date = serializers.DateField(
+        error_messages={"invalid": "date must be in YYYY-MM-DD format."}
+    )
+    start_time = serializers.TimeField(
+        error_messages={"invalid": "start_time must be in HH:MM format."}
+    )
 
 
 class AppointmentUpdateSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=("cancel", "reschedule"))
-    date = serializers.DateField(required=False)
-    start_time = serializers.TimeField(required=False)
+    date = serializers.DateField(
+        required=False, error_messages={"invalid": "date must be in YYYY-MM-DD format."}
+    )
+    start_time = serializers.TimeField(
+        required=False,
+        error_messages={"invalid": "start_time must be in HH:MM format."},
+    )
 
     def validate(self, attrs):
         if attrs.get("action") == "reschedule":
