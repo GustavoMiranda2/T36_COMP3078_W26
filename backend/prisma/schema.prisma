@@ -19,3 +19,15 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
 }
+
+model Service {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  durationMinutes Int
+  priceCents      Int
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([isActive])
+}
