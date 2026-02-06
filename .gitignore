@@ -36,3 +36,19 @@ local.properties
 # Misc
 *.env
 *.env.local
+
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment files
+.env
+
+# Django
+db.sqlite3

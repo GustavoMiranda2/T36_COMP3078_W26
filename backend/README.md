@@ -1,91 +1,59 @@
 # Capstone Backend
 
-Backend API for the booking application.
+Backend API for the booking application, built with Python and Django REST Framework.
+
+This backend provides authentication, service listing, availability calculation, and appointment booking APIs, designed to be consumed by both web and mobile clients.
+
+---
 
 ## Tech Stack
-- Fastify
-- TypeScript
-- Prisma
+- Python
+- Django
+- Django REST Framework (DRF)
 - PostgreSQL
+- JWT Authentication (SimpleJWT)
 
-## Environment
-Create a `.env` file (see `.env.example`):
+---
 
-- `PORT` (default 3000)
+## Environment Setup
+
+Create a `.env` file in the `backend/` directory (see `.env.example`).
+
+Required variables:
+
+- `DEBUG` (true / false)
+- `SECRET_KEY`
 - `DATABASE_URL` (PostgreSQL connection string)
-- `JWT_SECRET`
+- `ALLOWED_HOSTS`
+- `JWT_SECRET_KEY` (or use Django `SECRET_KEY`)
 
-## Install
-```bash
-npm install
+Example:
+```env
+DEBUG=true
+SECRET_KEY=django-secret-key
+DATABASE_URL=postgres://user:password@localhost:5432/capstone_db
+ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
-## Migrate
-```bash
-npx prisma migrate dev
-npx prisma generate
-```
+---
 
-## Seed
-```bash
-npx prisma db seed
-```
+## Authentication Flow
+- `POST /auth/register` creates a user with email + password.
+- `POST /auth/login` returns `access` and `refresh` JWTs and user data.
+- All appointment endpoints require `Authorization: Bearer <access-token>`.
 
-## Run Locally
-```bash
-npm run dev
-```
+---
 
-## Build + Start
-```bash
-npm run build
-npm start
-```
+## Appointment Lifecycle
+- `POST /appointments` creates a confirmed appointment.
+- `GET /appointments?me=true` returns the authenticated user's appointments.
+- `PATCH /appointments/<id>` with `{ "action": "cancel" }` cancels the appointment.
+- `PATCH /appointments/<id>` with `{ "action": "reschedule", "date": "YYYY-MM-DD", "start_time": "HH:MM" }`
+  reschedules the appointment if the slot is available.
 
-## Example API Calls
+---
 
-### POST /auth/register
-```bash
-curl -X POST http://localhost:3000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"Passw0rd!"}'
-```
-
-### POST /auth/login
-```bash
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"Passw0rd!"}'
-```
-
-### GET /services
-```bash
-curl http://localhost:3000/services
-```
-
-### GET /availability
-```bash
-curl "http://localhost:3000/availability?date=2026-02-10"
-```
-
-### POST /appointments
-```bash
-curl -X POST http://localhost:3000/appointments \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"serviceId":"<SERVICE_ID>","date":"2026-02-10","startTime":"10:00"}'
-```
-
-### GET /appointments?me=true
-```bash
-curl "http://localhost:3000/appointments?me=true" \
-  -H "Authorization: Bearer <TOKEN>"
-```
-
-### PATCH /appointments/:id
-```bash
-curl -X PATCH http://localhost:3000/appointments/<APPOINTMENT_ID> \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"cancel"}'
-```
+## Business Hours
+- Slots are in 15-minute increments.
+- Business hours are 10:00 to 19:00.
+- The last slot starts at 18:45.
