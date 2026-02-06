@@ -20,6 +20,23 @@ model User {
   createdAt    DateTime @default(now())
 }
 
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Appointment {
+  id        String             @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime
+  status    AppointmentStatus  @default(CONFIRMED)
+  createdAt DateTime           @default(now())
+
+  @@index([startTime])
+  @@index([status])
+}
+
 model Service {
   id              String   @id @default(uuid())
   name            String

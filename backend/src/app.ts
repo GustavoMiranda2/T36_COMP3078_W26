@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import prisma from './lib/prisma';
 import { authRoutes } from './routes/auth';
+import { availabilityRoutes } from './routes/availability';
 import { servicesRoutes } from './routes/services';
 
 const app = Fastify({ logger: true });
@@ -18,5 +19,6 @@ app.get('/health', async () => {
 
 app.register(authRoutes, { prefix: '/auth' });
 app.register(servicesRoutes, { prefix: '/services' });
+app.register(availabilityRoutes, { prefix: '/availability' });
 
 export default app;
