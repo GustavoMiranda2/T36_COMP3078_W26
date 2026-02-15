@@ -43,6 +43,8 @@ class AdminLoginActivity : AppCompatActivity() {
                         return@login
                     }
 
+                    // Clear other role session first; clear() resets API tokens.
+                    UserSession.clear()
                     ApiClient.accessToken = access
                     ApiClient.refreshToken = refresh
                     AdminSession.isLoggedIn = true

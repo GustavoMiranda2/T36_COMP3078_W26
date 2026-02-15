@@ -1,16 +1,48 @@
 package com.example.uiprototypebeta
 
+import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
+import android.widget.LinearLayout.LayoutParams
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.widget.AppCompatButton
+import com.google.android.material.card.MaterialCardView
+import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class UserDashboardActivity : BaseDrawerActivity() {
+
+    private lateinit var tvNextBooking: TextView
+    private lateinit var tvTotalVisits: TextView
+    private lateinit var btnUpcoming: Button
+    private lateinit var btnPast: Button
+    private lateinit var upcomingContainer: ScrollView
+    private lateinit var upcomingList: LinearLayout
+    private lateinit var pastContainer: LinearLayout
+
+    private val dateParserPatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ssXXX"
+    )
+
+    private data class AppointmentUi(
+        val id: String,
+        val serviceId: String,
+        val serviceTitle: String,
+        val servicePriceCents: Int,
+        val serviceDurationMinutes: Int,
+        val startMillis: Long,
+        val status: String
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,10 +55,13 @@ class UserDashboardActivity : BaseDrawerActivity() {
 
         val tvGreeting: TextView = findViewById(R.id.tvGreeting)
         val tvDate: TextView = findViewById(R.id.tvDate)
-        val btnUpcoming: Button = findViewById(R.id.btnUpcoming)
-        val btnPast: Button = findViewById(R.id.btnPast)
-        val upcomingContainer: ScrollView = findViewById(R.id.upcomingContainer)
-        val pastContainer: LinearLayout = findViewById(R.id.pastContainer)
+        tvNextBooking = findViewById(R.id.tvNextBooking)
+        tvTotalVisits = findViewById(R.id.tvTotalVisits)
+        btnUpcoming = findViewById(R.id.btnUpcoming)
+        btnPast = findViewById(R.id.btnPast)
+        upcomingContainer = findViewById(R.id.upcomingContainer)
+        upcomingList = findViewById(R.id.upcomingList)
+        pastContainer = findViewById(R.id.pastContainer)
 
         val name = if (UserSession.displayName.isNotBlank()) UserSession.displayName else "Guest"
         tvGreeting.text = "Hi, $name"
@@ -42,17 +77,272 @@ class UserDashboardActivity : BaseDrawerActivity() {
         }
 
         btnUpcoming.setOnClickListener {
-            upcomingContainer.visibility = View.VISIBLE
-            pastContainer.visibility = View.GONE
+            showUpcoming()
             setActiveButton(btnUpcoming, btnPast)
         }
 
         btnPast.setOnClickListener {
-            upcomingContainer.visibility = View.GONE
-            pastContainer.visibility = View.VISIBLE
+            showPast()
             setActiveButton(btnPast, btnUpcoming)
         }
 
         setActiveButton(btnUpcoming, btnPast)
+        showUpcoming()
+
+        loadAppointments()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (UserSession.isLoggedIn) {
+            loadAppointments()
+        }
+    }
+
+    private fun showUpcoming() {
+        upcomingContainer.visibility = View.VISIBLE
+        pastContainer.visibility = View.GONE
+    }
+
+    private fun showPast() {
+        upcomingContainer.visibility = View.GONE
+        pastContainer.visibility = View.VISIBLE
+    }
+
+    private fun loadAppointments() {
+        if (!UserSession.isLoggedIn) {
+            tvNextBooking.text = "Sign in to manage bookings"
+            tvTotalVisits.text = "0"
+            upcomingList.removeAllViews()
+            pastContainer.removeAllViews()
+            addEmptyState(upcomingList, "No upcoming bookings")
+            addEmptyState(pastContainer, "No past bookings")
+            return
+        }
+
+        tvNextBooking.text = "Loading..."
+        ApiClient.getMyAppointments(
+            onSuccess = { array ->
+                val appointments = parseAppointments(array)
+                runOnUiThread { renderAppointments(appointments) }
+            },
+            onError = { msg ->
+                runOnUiThread {
+                    tvNextBooking.text = "Unable to load"
+                    Toast.makeText(this, "Failed to load appointments: $msg", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+    }
+
+    private fun parseAppointments(array: JSONArray): List<AppointmentUi> {
+        val result = mutableListOf<AppointmentUi>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val service = obj.optJSONObject("service") ?: continue
+            val start = parseIsoMillis(obj.optString("start_time")) ?: continue
+
+            result.add(
+                AppointmentUi(
+                    id = obj.optString("id"),
+                    serviceId = service.optString("id"),
+                    serviceTitle = service.optString("name", "Service"),
+                    servicePriceCents = service.optInt("price_cents", 0),
+                    serviceDurationMinutes = service.optInt("duration_minutes", 0),
+                    startMillis = start,
+                    status = obj.optString("status", "CONFIRMED")
+                )
+            )
+        }
+        return result
+    }
+
+    private fun renderAppointments(appointments: List<AppointmentUi>) {
+        val now = System.currentTimeMillis()
+
+        val upcoming = appointments
+            .filter { it.status != "CANCELLED" && it.startMillis >= now }
+            .sortedBy { it.startMillis }
+
+        val past = appointments
+            .filter { it.status == "CANCELLED" || it.startMillis < now }
+            .sortedByDescending { it.startMillis }
+
+        val next = upcoming.firstOrNull()
+        tvNextBooking.text = if (next != null) {
+            formatDateTime(next.startMillis)
+        } else {
+            "None scheduled"
+        }
+
+        val visits = appointments.count { it.status != "CANCELLED" }
+        tvTotalVisits.text = visits.toString()
+
+        upcomingList.removeAllViews()
+        pastContainer.removeAllViews()
+
+        if (upcoming.isEmpty()) {
+            addEmptyState(upcomingList, "No upcoming bookings")
+        } else {
+            upcoming.forEach { appointment ->
+                upcomingList.addView(buildAppointmentCard(appointment, isUpcoming = true))
+            }
+        }
+
+        if (past.isEmpty()) {
+            addEmptyState(pastContainer, "No past bookings")
+        } else {
+            past.forEach { appointment ->
+                pastContainer.addView(buildAppointmentCard(appointment, isUpcoming = false))
+            }
+        }
+    }
+
+    private fun buildAppointmentCard(item: AppointmentUi, isUpcoming: Boolean): View {
+        val card = MaterialCardView(this).apply {
+            radius = dp(16).toFloat()
+            strokeWidth = dp(1)
+            strokeColor = Color.parseColor("#E5E4EF")
+            setCardBackgroundColor(Color.WHITE)
+            cardElevation = dp(2).toFloat()
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(12)
+            }
+            setContentPadding(dp(16), dp(16), dp(16), dp(16))
+        }
+
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val title = TextView(this).apply {
+            text = item.serviceTitle
+            setTextColor(Color.parseColor("#0F0A1E"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+
+        val date = TextView(this).apply {
+            text = formatDateTime(item.startMillis)
+            setTextColor(Color.parseColor("#5A5872"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setPadding(0, dp(4), 0, 0)
+        }
+
+        val status = TextView(this).apply {
+            val label = when (item.status) {
+                "CANCELLED" -> "Cancelled"
+                "NO_SHOW" -> "No-show"
+                "PENDING" -> "Pending"
+                else -> "Confirmed"
+            }
+            text = "Status: $label"
+            setTextColor(
+                when (item.status) {
+                    "CANCELLED" -> Color.parseColor("#B3261E")
+                    "NO_SHOW" -> Color.parseColor("#7A3E00")
+                    "PENDING" -> Color.parseColor("#7A4F01")
+                    else -> Color.parseColor("#1A132F")
+                }
+            )
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setPadding(0, dp(4), 0, 0)
+        }
+
+        body.addView(title)
+        body.addView(date)
+        body.addView(status)
+
+        if (isUpcoming && item.status != "CANCELLED") {
+            val actions = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(12), 0, 0)
+            }
+
+            val cancelBtn = AppCompatButton(this).apply {
+                text = "Cancel"
+                layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = dp(6)
+                }
+                setOnClickListener { cancelAppointment(item.id) }
+            }
+
+            val rescheduleBtn = AppCompatButton(this).apply {
+                text = "Reschedule"
+                layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(6)
+                }
+                setOnClickListener {
+                    val intent = Intent(this@UserDashboardActivity, BookingScheduleActivity::class.java).apply {
+                        putExtra("service_id", item.serviceId)
+                        putExtra("service_title", item.serviceTitle)
+                        putExtra("service_price", item.servicePriceCents)
+                        putExtra("service_duration", item.serviceDurationMinutes)
+                        putExtra("reschedule_id", item.id)
+                    }
+                    startActivity(intent)
+                }
+            }
+
+            actions.addView(cancelBtn)
+            actions.addView(rescheduleBtn)
+            body.addView(actions)
+        }
+
+        card.addView(body)
+        return card
+    }
+
+    private fun cancelAppointment(id: String) {
+        ApiClient.cancelAppointment(
+            id = id,
+            onSuccess = {
+                runOnUiThread {
+                    Toast.makeText(this, "Appointment cancelled", Toast.LENGTH_SHORT).show()
+                    loadAppointments()
+                }
+            },
+            onError = { msg ->
+                runOnUiThread {
+                    Toast.makeText(this, "Failed to cancel: $msg", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+    }
+
+    private fun addEmptyState(container: LinearLayout, message: String) {
+        val text = TextView(this).apply {
+            this.text = message
+            setTextColor(Color.parseColor("#7B7794"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setPadding(0, dp(8), 0, dp(8))
+        }
+        container.addView(text)
+    }
+
+    private fun parseIsoMillis(raw: String): Long? {
+        for (pattern in dateParserPatterns) {
+            try {
+                val parser = SimpleDateFormat(pattern, Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                    isLenient = false
+                }
+                return parser.parse(raw)?.time
+            } catch (_: Exception) {
+            }
+        }
+        return null
+    }
+
+    private fun formatDateTime(millis: Long): String {
+        return SimpleDateFormat("EEE, MMM d - h:mm a", Locale.getDefault()).format(Date(millis))
+    }
+
+    private fun dp(value: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value.toFloat(),
+            resources.displayMetrics
+        ).toInt()
     }
 }

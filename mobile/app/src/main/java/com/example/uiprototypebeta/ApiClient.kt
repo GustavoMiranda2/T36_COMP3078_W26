@@ -11,13 +11,12 @@ import java.io.IOException
  * Singleton HTTP client that talks to the Django REST API.
  * Uses OkHttp with callback-based async calls so the main thread is never blocked.
  *
- * Change BASE_URL to your machine's IP when running on a real device.
- * For the Android emulator, 10.0.2.2 maps to the host machine's localhost.
+ * Default URL is defined via BuildConfig.API_BASE_URL in Gradle.
+ * For Android emulator, 10.0.2.2 maps to host machine localhost.
  */
 object ApiClient {
 
-    // Use 10.0.2.2 for Android emulator -> host machine's localhost
-    var BASE_URL = "http://10.0.2.2:8000"
+    var baseUrl: String = BuildConfig.API_BASE_URL.trimEnd('/')
 
     private val client = OkHttpClient()
     private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
@@ -145,6 +144,32 @@ object ApiClient {
         getArray("/admin/analytics/top-services", authenticated = true, onSuccess = onSuccess, onError = onError)
     }
 
+    fun getBookingsPerDay(
+        month: String,
+        onSuccess: (JSONArray) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        getArray(
+            "/admin/analytics/bookings-per-day?month=$month",
+            authenticated = true,
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    fun getBookingsPerMonth(
+        year: String,
+        onSuccess: (JSONArray) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        getArray(
+            "/admin/analytics/bookings-per-month?year=$year",
+            authenticated = true,
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
     fun getNoShowRate(
         onSuccess: (JSONObject) -> Unit,
         onError: (String) -> Unit
@@ -160,7 +185,7 @@ object ApiClient {
         onSuccess: (JSONObject) -> Unit,
         onError: (String) -> Unit
     ) {
-        val builder = Request.Builder().url("$BASE_URL$path").get()
+        val builder = Request.Builder().url(url(path)).get()
         if (authenticated) accessToken?.let { builder.addHeader("Authorization", "Bearer $it") }
         client.newCall(builder.build()).enqueue(jsonCallback(onSuccess, onError))
     }
@@ -171,7 +196,7 @@ object ApiClient {
         onSuccess: (JSONArray) -> Unit,
         onError: (String) -> Unit
     ) {
-        val builder = Request.Builder().url("$BASE_URL$path").get()
+        val builder = Request.Builder().url(url(path)).get()
         if (authenticated) accessToken?.let { builder.addHeader("Authorization", "Bearer $it") }
         client.newCall(builder.build()).enqueue(jsonArrayCallback(onSuccess, onError))
     }
@@ -184,7 +209,7 @@ object ApiClient {
         onError: (String) -> Unit
     ) {
         val builder = Request.Builder()
-            .url("$BASE_URL$path")
+            .url(url(path))
             .post(body.toString().toRequestBody(JSON_TYPE))
         if (authenticated) accessToken?.let { builder.addHeader("Authorization", "Bearer $it") }
         client.newCall(builder.build()).enqueue(jsonCallback(onSuccess, onError))
@@ -197,11 +222,13 @@ object ApiClient {
         onError: (String) -> Unit
     ) {
         val builder = Request.Builder()
-            .url("$BASE_URL$path")
+            .url(url(path))
             .patch(body.toString().toRequestBody(JSON_TYPE))
         accessToken?.let { builder.addHeader("Authorization", "Bearer $it") }
         client.newCall(builder.build()).enqueue(jsonCallback(onSuccess, onError))
     }
+
+    private fun url(path: String): String = "$baseUrl$path"
 
     private fun jsonCallback(
         onSuccess: (JSONObject) -> Unit,

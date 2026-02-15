@@ -33,6 +33,8 @@ class LoginActivity : AppCompatActivity() {
                     val userEmail = user.getString("email")
                     val userId = user.getString("id")
 
+                    // Clear other role session first; clear() resets API tokens.
+                    AdminSession.clear()
                     ApiClient.accessToken = access
                     ApiClient.refreshToken = refresh
                     UserSession.isLoggedIn = true

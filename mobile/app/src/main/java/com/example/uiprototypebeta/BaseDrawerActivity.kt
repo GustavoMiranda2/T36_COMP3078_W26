@@ -158,8 +158,8 @@ open class BaseDrawerActivity : AppCompatActivity() {
     private fun performLogout() {
         clearNavSelection()
         showLogoutOption(false)
-        AdminSession.isLoggedIn = false
-        UserSession.isLoggedIn = false
+        AdminSession.clear()
+        UserSession.clear()
         updateUserFooterLabel()
         drawerLayout.closeDrawer(GravityCompat.END)
         val intent = Intent(this, LoginActivity::class.java).apply {

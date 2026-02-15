@@ -54,3 +54,13 @@ This repository contains only the **UI prototype** for the Hair Stylist Booking 
 
 **© 2025 Group 33 — BrazWebDes Hair Stylist Booking Web Application**
 
+
+## Mobile API Connection (Android)
+- Default API URL in the app: `http://10.0.2.2:8000` (Android emulator -> host machine).
+- For physical devices, build with your machine IP:
+
+```bash
+./gradlew :app:assembleDebug -PapiBaseUrl=http://192.168.1.50:8000
+```
+
+- Backend must include that host in `ALLOWED_HOSTS`.

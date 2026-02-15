@@ -47,6 +47,11 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+if DEBUG:
+    # Include common local development hosts (web + Android emulator).
+    dev_hosts = {"localhost", "127.0.0.1", "[::1]", "10.0.2.2"}
+    ALLOWED_HOSTS = sorted(set(ALLOWED_HOSTS).union(dev_hosts))
+
 
 # Application definition
 
