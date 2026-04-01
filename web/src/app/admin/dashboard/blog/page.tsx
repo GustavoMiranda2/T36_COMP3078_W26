@@ -59,6 +59,7 @@ export default function AdminBlogPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -193,6 +194,7 @@ export default function AdminBlogPage() {
                 value={form.cover_image_url}
                 onChange={(value) => setForm((current) => ({ ...current, cover_image_url: value }))}
                 onUpload={handleImageUpload}
+                onUploadingChange={setImageUploading}
               />
             </div>
             <Field label="Excerpt">
@@ -240,8 +242,8 @@ export default function AdminBlogPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button type="submit" className={primaryButtonClass} disabled={saving}>
-                {saving ? 'Saving...' : editingId ? 'Save post' : 'Create post'}
+              <button type="submit" className={primaryButtonClass} disabled={saving || imageUploading}>
+                {imageUploading ? 'Uploading image...' : saving ? 'Saving...' : editingId ? 'Save post' : 'Create post'}
               </button>
               {editingId ? (
                 <button type="button" onClick={resetForm} className={secondaryButtonClass}>

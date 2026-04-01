@@ -94,6 +94,7 @@ export default function AdminServicesPage() {
   const [editingAddOnId, setEditingAddOnId] = useState<string | null>(null);
   const [serviceForm, setServiceForm] = useState<ServiceFormState>(initialServiceForm);
   const [addOnForm, setAddOnForm] = useState<AddOnFormState>(initialAddOnForm);
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -274,6 +275,7 @@ export default function AdminServicesPage() {
               value={serviceForm.image_url}
               onChange={(value) => setServiceForm((prev) => ({ ...prev, image_url: value }))}
               onUpload={handleImageUpload}
+              onUploadingChange={setServiceImageUploading}
             />
             <Field label="Payment note">
               <textarea
@@ -359,7 +361,9 @@ export default function AdminServicesPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button className={primaryButtonClass}>{editingServiceId ? 'Save service' : 'Create service'}</button>
+              <button className={primaryButtonClass} disabled={serviceImageUploading}>
+                {serviceImageUploading ? 'Uploading image...' : editingServiceId ? 'Save service' : 'Create service'}
+              </button>
               {editingServiceId ? (
                 <button type="button" onClick={resetServiceForm} className={secondaryButtonClass}>
                   Cancel edit

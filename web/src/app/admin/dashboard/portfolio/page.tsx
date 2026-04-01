@@ -56,6 +56,7 @@ export default function AdminPortfolioPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -197,6 +198,7 @@ export default function AdminPortfolioPage() {
                 value={form.image_url}
                 onChange={(value) => setForm((current) => ({ ...current, image_url: value }))}
                 onUpload={handleImageUpload}
+                onUploadingChange={setImageUploading}
               />
             </div>
             <Field label="Description">
@@ -226,8 +228,14 @@ export default function AdminPortfolioPage() {
               />
             </div>
             <div className="flex flex-wrap gap-3">
-              <button type="submit" className={primaryButtonClass} disabled={saving}>
-                {saving ? 'Saving...' : editingId ? 'Save portfolio item' : 'Create portfolio item'}
+              <button type="submit" className={primaryButtonClass} disabled={saving || imageUploading}>
+                {imageUploading
+                  ? 'Uploading image...'
+                  : saving
+                    ? 'Saving...'
+                    : editingId
+                      ? 'Save portfolio item'
+                      : 'Create portfolio item'}
               </button>
               {editingId ? (
                 <button type="button" onClick={resetForm} className={secondaryButtonClass}>

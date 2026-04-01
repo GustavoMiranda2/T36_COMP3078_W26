@@ -15,12 +15,20 @@ from pathlib import Path
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+# Support both the documented `.env` file and the local `env` file in this repo.
+# Precedence is: process environment > local `env` > `.env`.
+dotenv_merged = {
+    **dotenv_values(BASE_DIR / ".env"),
+    **dotenv_values(BASE_DIR / "env"),
+}
+for _key, _value in dotenv_merged.items():
+    if _value is not None:
+        os.environ.setdefault(_key, _value)
 
 
 # Quick-start development settings - unsuitable for production
@@ -193,6 +201,7 @@ from datetime import timedelta as _td  # noqa: E402
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': _td(hours=1),
     'REFRESH_TOKEN_LIFETIME': _td(days=1),
+    'SIGNING_KEY': os.getenv("JWT_SECRET_KEY", SECRET_KEY),
 }
 
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")

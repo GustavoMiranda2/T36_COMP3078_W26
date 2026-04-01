@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 
 export const inputClass =
   'w-full rounded-xl border border-[#e5e4ef] bg-white px-3 py-3 text-sm outline-none ring-[#5b4fe5]/40 focus:ring-2';
@@ -213,6 +213,7 @@ export function ImageUploadField({
   kind,
   onChange,
   onUpload,
+  onUploadingChange,
 }: {
   label: string;
   hint?: string;
@@ -220,24 +221,36 @@ export function ImageUploadField({
   kind: 'service' | 'portfolio' | 'blog' | 'misc';
   onChange: (value: string) => void;
   onUpload: (file: File, kind: 'service' | 'portfolio' | 'blog' | 'misc') => Promise<string>;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  async function handleUpload() {
-    if (!file) return;
+  async function uploadFile(file: File) {
     setUploading(true);
     setUploadError('');
+    setSelectedFileName(file.name);
+    onUploadingChange?.(true);
     try {
       const nextUrl = await onUpload(file, kind);
       onChange(nextUrl);
-      setFile(null);
     } catch (error: unknown) {
       setUploadError(error instanceof Error ? error.message : 'Failed to upload image.');
     } finally {
       setUploading(false);
+      onUploadingChange?.(false);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
     }
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0];
+    if (!nextFile) return;
+    void uploadFile(nextFile);
   }
 
   return (
@@ -253,23 +266,19 @@ export function ImageUploadField({
 
       <div className="flex flex-wrap items-center gap-3">
         <input
+          ref={inputRef}
           type="file"
           accept="image/*"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          onChange={handleFileChange}
           className="block text-sm text-[#5a5872] file:mr-3 file:rounded-full file:border-0 file:bg-[#1a132f] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
         />
-        <button
-          type="button"
-          onClick={handleUpload}
-          disabled={!file || uploading}
+        <span
           className={`rounded-xl px-4 py-3 text-sm font-semibold ${
-            file && !uploading
-              ? 'bg-[#1a132f] text-white hover:brightness-110'
-              : 'cursor-not-allowed bg-[#e9e8f5] text-[#7b7794]'
+            uploading ? 'bg-[#1a132f] text-white' : 'bg-[#e9e8f5] text-[#5a5872]'
           }`}
         >
-          {uploading ? 'Uploading...' : 'Upload image'}
-        </button>
+          {uploading ? `Uploading ${selectedFileName || 'image'}...` : 'Uploads automatically after selection'}
+        </span>
       </div>
 
       {uploadError ? <p className="text-sm font-semibold text-red-600">{uploadError}</p> : null}
