@@ -15,6 +15,9 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: `${siteConfig.studioName} | ${siteConfig.brandName}`,
   description: 'Online booking, portfolio, reviews, and admin management for the Brazdes barber experience.',
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
