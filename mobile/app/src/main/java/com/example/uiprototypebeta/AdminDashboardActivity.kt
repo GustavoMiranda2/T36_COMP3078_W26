@@ -39,6 +39,7 @@ class AdminDashboardActivity : BaseDrawerActivity() {
         val userId: String,
         val userName: String,
         val userEmail: String,
+        val userPhone: String,
         val serviceName: String,
         val startMillis: Long,
         val totalPriceCents: Int,
@@ -686,6 +687,15 @@ class AdminDashboardActivity : BaseDrawerActivity() {
             setPadding(0, dp(4), 0, 0)
         })
 
+        if (item.userPhone.isNotBlank()) {
+            body.addView(TextView(this).apply {
+                text = item.userPhone
+                setTextColor(Color.parseColor("#FF5A5872"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setPadding(0, dp(4), 0, 0)
+            })
+        }
+
         if (item.addOnNames.isNotEmpty()) {
             body.addView(TextView(this).apply {
                 text = "Add-ons: ${item.addOnNames.joinToString(", ")}"
@@ -918,6 +928,7 @@ class AdminDashboardActivity : BaseDrawerActivity() {
                         user.optString("email").substringBefore("@")
                     },
                     userEmail = user.optString("email"),
+                    userPhone = user.optString("phone"),
                     serviceName = service.optString("name", "Service"),
                     startMillis = startMillis,
                     totalPriceCents = obj.optInt("total_price_cents", service.optInt("price_cents", 0)),

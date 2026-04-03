@@ -624,5 +624,7 @@ function appointmentSummaryLines(appointment: AdminAppointmentData) {
   return [
     `${formatDateTime(appointment.start_time)} · ${formatCurrency(appointment.total_price_cents)}`,
     appointment.user.display_name || appointment.user.email,
+    appointment.user.email,
+    appointment.user.phone || 'Phone not provided',
   ];
 }
