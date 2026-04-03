@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../../session-context';
 import {
   apiCreateAdminBlogPost,
+  apiDeleteAdminBlogPost,
   apiGetAdminBlogPosts,
   apiUpdateAdminBlogPost,
   apiUploadAdminImage,
@@ -17,6 +18,7 @@ import {
   ImageUploadField,
   NoticeBanner,
   Toggle,
+  dangerButtonClass,
   inputClass,
   panelClass,
   parseTags,
@@ -60,6 +62,7 @@ export default function AdminBlogPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [imageUploading, setImageUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -153,6 +156,28 @@ export default function AdminBlogPage() {
       setError(err instanceof Error ? err.message : 'Failed to save blog post.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(post: AdminBlogPostData) {
+    if (!window.confirm(`Delete blog post "${post.title}"?`)) {
+      return;
+    }
+
+    setDeletingId(post.id);
+    setError('');
+    setNotice('');
+    try {
+      await apiDeleteAdminBlogPost(post.id);
+      if (editingId === post.id) {
+        resetForm();
+      }
+      setNotice('Blog post deleted.');
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete blog post.');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -286,6 +311,14 @@ export default function AdminBlogPage() {
                       Featured
                     </span>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(post)}
+                    disabled={deletingId === post.id}
+                    className={dangerButtonClass}
+                  >
+                    {deletingId === post.id ? 'Deleting...' : 'Delete'}
+                  </button>
                 </EditableRow>
               ))
             )}

@@ -13,6 +13,8 @@ export const primaryButtonClass =
   'rounded-xl bg-[#1a132f] px-4 py-3 text-sm font-semibold text-white hover:brightness-110';
 export const secondaryButtonClass =
   'rounded-xl border border-[#e3e3e3] px-4 py-3 text-sm font-semibold text-[#1a132f] hover:bg-[#f6f6f6]';
+export const dangerButtonClass =
+  'rounded-xl border border-[#f0c7c5] bg-[#fff5f5] px-4 py-3 text-sm font-semibold text-[#b42318] hover:bg-[#ffe9e8]';
 
 export function AdminPageHeader({
   title,

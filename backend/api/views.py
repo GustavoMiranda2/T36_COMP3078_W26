@@ -188,6 +188,14 @@ def _get_or_create_booking_user(email: str, display_name: str = "") -> User:
     )
 
 
+def _purge_user_personal_data(user: User):
+    # Remove records that retain personally identifiable information before
+    # deleting the user account itself.
+    Testimonial.objects.filter(user=user).delete()
+    Appointment.objects.filter(user=user).delete()
+    user.delete()
+
+
 def _ensure_customer_can_modify(appointment: Appointment, action: str):
     if appointment.status in {AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW}:
         raise ValidationError({"detail": f"Cannot {action} an appointment in its current state."})
@@ -256,6 +264,29 @@ class RegisterView(APIView):
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     permission_classes = [AllowAny]
+
+
+class AccountDeletionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        if user.role == User.Role.ADMIN:
+            raise ValidationError(
+                {"detail": "Admin accounts must be removed through the administrative workflow."}
+            )
+
+        deleted_email = user.email
+        with transaction.atomic():
+            _purge_user_personal_data(user)
+
+        return Response(
+            {
+                "result": "deleted",
+                "deleted_email": deleted_email,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class HomeContentView(APIView):
@@ -573,7 +604,7 @@ class AdminServiceListCreateView(generics.ListCreateAPIView):
         return Service.objects.prefetch_related("available_add_ons")
 
 
-class AdminServiceDetailView(generics.RetrieveUpdateAPIView):
+class AdminServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ServiceAdminSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     queryset = Service.objects.prefetch_related("available_add_ons")
@@ -587,7 +618,7 @@ class AdminAddOnListCreateView(generics.ListCreateAPIView):
         return AddOn.objects.prefetch_related("services")
 
 
-class AdminAddOnDetailView(generics.RetrieveUpdateAPIView):
+class AdminAddOnDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AddOnAdminSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     queryset = AddOn.objects.prefetch_related("services")
@@ -599,7 +630,7 @@ class AdminPortfolioItemListCreateView(generics.ListCreateAPIView):
     queryset = PortfolioItem.objects.all()
 
 
-class AdminPortfolioItemDetailView(generics.RetrieveUpdateAPIView):
+class AdminPortfolioItemDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PortfolioItemAdminSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     queryset = PortfolioItem.objects.all()
@@ -616,7 +647,7 @@ class AdminBlogPostListCreateView(generics.ListCreateAPIView):
         serializer.save(created_by=self.request.user)
 
 
-class AdminBlogPostDetailView(generics.RetrieveUpdateAPIView):
+class AdminBlogPostDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BlogPostAdminSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     queryset = BlogPost.objects.select_related("created_by")

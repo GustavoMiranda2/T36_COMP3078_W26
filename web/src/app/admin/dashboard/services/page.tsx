@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../../../session-context';
 import {
+  apiDeleteAdminAddOn,
+  apiDeleteAdminService,
   apiCreateAdminAddOn,
   apiCreateAdminService,
   apiGetAdminAddOns,
@@ -29,6 +31,7 @@ import {
   panelClass,
   primaryButtonClass,
   secondaryButtonClass,
+  dangerButtonClass,
   textAreaClass,
 } from '../admin-ui';
 
@@ -95,6 +98,8 @@ export default function AdminServicesPage() {
   const [serviceForm, setServiceForm] = useState<ServiceFormState>(initialServiceForm);
   const [addOnForm, setAddOnForm] = useState<AddOnFormState>(initialAddOnForm);
   const [serviceImageUploading, setServiceImageUploading] = useState(false);
+  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [deletingAddOnId, setDeletingAddOnId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -227,6 +232,50 @@ export default function AdminServicesPage() {
       await loadData();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save add-on.');
+    }
+  }
+
+  async function handleDeleteService(service: AdminServiceData) {
+    if (!window.confirm(`Delete service "${service.name}"? Existing appointments may block this action.`)) {
+      return;
+    }
+
+    setDeletingServiceId(service.id);
+    setError('');
+    setNotice('');
+    try {
+      await apiDeleteAdminService(service.id);
+      if (editingServiceId === service.id) {
+        resetServiceForm();
+      }
+      setNotice('Service deleted.');
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete service.');
+    } finally {
+      setDeletingServiceId(null);
+    }
+  }
+
+  async function handleDeleteAddOn(addOn: AdminAddOnData) {
+    if (!window.confirm(`Delete add-on "${addOn.name}"?`)) {
+      return;
+    }
+
+    setDeletingAddOnId(addOn.id);
+    setError('');
+    setNotice('');
+    try {
+      await apiDeleteAdminAddOn(addOn.id);
+      if (editingAddOnId === addOn.id) {
+        resetAddOnForm();
+      }
+      setNotice('Add-on deleted.');
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete add-on.');
+    } finally {
+      setDeletingAddOnId(null);
     }
   }
 
@@ -382,18 +431,26 @@ export default function AdminServicesPage() {
                 } add-ons`}
                 meta={service.is_featured_home ? 'Featured on home' : service.is_active ? 'Active' : 'Hidden'}
                 onEdit={() => editService(service)}
-              >
-                {service.image_url ? (
-                  <Link
+                >
+                  {service.image_url ? (
+                    <Link
                     href={service.image_url}
                     target="_blank"
                     className="rounded-full border border-[#ecebf5] px-3 py-1 text-xs font-medium text-[#1a132f]"
+                    >
+                      Preview image
+                    </Link>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteService(service)}
+                    disabled={deletingServiceId === service.id}
+                    className={dangerButtonClass}
                   >
-                    Preview image
-                  </Link>
-                ) : null}
-              </EditableRow>
-            ))}
+                    {deletingServiceId === service.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </EditableRow>
+              ))}
           </div>
         </section>
 
@@ -503,7 +560,16 @@ export default function AdminServicesPage() {
                 } min`}
                 meta={`${addOn.services.length} linked services`}
                 onEdit={() => editAddOn(addOn)}
-              />
+              >
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteAddOn(addOn)}
+                  disabled={deletingAddOnId === addOn.id}
+                  className={dangerButtonClass}
+                >
+                  {deletingAddOnId === addOn.id ? 'Deleting...' : 'Delete'}
+                </button>
+              </EditableRow>
             ))}
           </div>
         </section>

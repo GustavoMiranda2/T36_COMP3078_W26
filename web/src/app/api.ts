@@ -75,6 +75,11 @@ export type LoginResult = {
   user: UserData;
 };
 
+export type AccountDeletionResult = {
+  result: 'deleted';
+  deleted_email: string;
+};
+
 export type AddOnData = {
   id: string;
   name: string;
@@ -232,6 +237,16 @@ export async function apiRegister(email: string, password: string, displayName =
   });
   if (!res.ok) {
     throw new Error(await parseError(res, 'Registration failed.'));
+  }
+  return res.json();
+}
+
+export async function apiDeleteAccount(): Promise<AccountDeletionResult> {
+  const res = await authFetch('/auth/account', {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error(await parseError(res, 'Failed to delete account.'));
   }
   return res.json();
 }
@@ -457,6 +472,13 @@ export async function apiUpdateAdminService(id: string, payload: Record<string, 
   return res.json();
 }
 
+export async function apiDeleteAdminService(id: string): Promise<void> {
+  const res = await authFetch(`/admin/services/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(await parseError(res, 'Failed to delete service.'));
+}
+
 export async function apiGetAdminAddOns(): Promise<AdminAddOnData[]> {
   const res = await authFetch('/admin/add-ons');
   if (!res.ok) throw new Error('Failed to load add-ons.');
@@ -479,6 +501,13 @@ export async function apiUpdateAdminAddOn(id: string, payload: Record<string, un
   });
   if (!res.ok) throw new Error(await parseError(res, 'Failed to update add-on.'));
   return res.json();
+}
+
+export async function apiDeleteAdminAddOn(id: string): Promise<void> {
+  const res = await authFetch(`/admin/add-ons/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(await parseError(res, 'Failed to delete add-on.'));
 }
 
 export async function apiGetAdminPortfolioItems(): Promise<AdminPortfolioItemData[]> {
@@ -508,6 +537,13 @@ export async function apiUpdateAdminPortfolioItem(
   return res.json();
 }
 
+export async function apiDeleteAdminPortfolioItem(id: string): Promise<void> {
+  const res = await authFetch(`/admin/portfolio-items/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(await parseError(res, 'Failed to delete portfolio item.'));
+}
+
 export async function apiGetAdminBlogPosts(): Promise<AdminBlogPostData[]> {
   const res = await authFetch('/admin/blog-posts');
   if (!res.ok) throw new Error('Failed to load blog posts.');
@@ -530,6 +566,13 @@ export async function apiUpdateAdminBlogPost(id: string, payload: Record<string,
   });
   if (!res.ok) throw new Error(await parseError(res, 'Failed to update blog post.'));
   return res.json();
+}
+
+export async function apiDeleteAdminBlogPost(id: string): Promise<void> {
+  const res = await authFetch(`/admin/blog-posts/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(await parseError(res, 'Failed to delete blog post.'));
 }
 
 export async function apiGetAdminTestimonials(): Promise<AdminTestimonialData[]> {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../../session-context';
 import {
   apiCreateAdminPortfolioItem,
+  apiDeleteAdminPortfolioItem,
   apiGetAdminPortfolioItems,
   apiUpdateAdminPortfolioItem,
   apiUploadAdminImage,
@@ -17,6 +18,7 @@ import {
   ImageUploadField,
   NoticeBanner,
   Toggle,
+  dangerButtonClass,
   inputClass,
   panelClass,
   primaryButtonClass,
@@ -57,6 +59,7 @@ export default function AdminPortfolioPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [imageUploading, setImageUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -148,6 +151,28 @@ export default function AdminPortfolioPage() {
       setError(err instanceof Error ? err.message : 'Failed to save portfolio item.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(item: AdminPortfolioItemData) {
+    if (!window.confirm(`Delete portfolio item "${item.title}"?`)) {
+      return;
+    }
+
+    setDeletingId(item.id);
+    setError('');
+    setNotice('');
+    try {
+      await apiDeleteAdminPortfolioItem(item.id);
+      if (editingId === item.id) {
+        resetForm();
+      }
+      setNotice('Portfolio item deleted.');
+      await loadData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete portfolio item.');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -278,6 +303,14 @@ export default function AdminPortfolioPage() {
                       Featured
                     </span>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(item)}
+                    disabled={deletingId === item.id}
+                    className={dangerButtonClass}
+                  >
+                    {deletingId === item.id ? 'Deleting...' : 'Delete'}
+                  </button>
                 </EditableRow>
               ))
             )}
