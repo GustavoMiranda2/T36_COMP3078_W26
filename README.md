@@ -71,13 +71,10 @@ cmd /c npm run dev -- --webpack
 
 ## 4. Mobile notes
 
-Android emulator API base URL is already configured to:
+Mobile debug is currently configured to use the remote stack by default:
 
-- `http://10.0.2.2:8000`
-
-Admin WebView in mobile uses:
-
-- `http://10.0.2.2:3000`
+- API: `https://brazdes-api-cvedaxfjc6gedwhn.canadacentral-01.azurewebsites.net`
+- Web support pages: `https://t36-comp-3078-w26.vercel.app`
 
 To build Android locally, make sure the Android SDK is configured first:
 

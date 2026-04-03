@@ -1,66 +1,41 @@
-# Hair Stylist Booking Web Application  
+# Brazdes Android App
 
-**Course:** Capstone Project — UI Prototype  
-**Group Number:** 33  
+This module contains the Android app that talks to:
 
-## Project Overview
-**Project Name:** Hair Stylist Booking Web Application  
-**Prototype Title:** Project UI Prototype  
+- Azure backend API: `https://brazdes-api-cvedaxfjc6gedwhn.canadacentral-01.azurewebsites.net`
+- Vercel web app: `https://t36-comp-3078-w26.vercel.app`
 
-This project is a **UI prototype** for a web and mobile application designed to simplify hairstylist appointment bookings. The prototype demonstrates the core user interface, flow, and visual identity of the system before full backend development and integration.  
+## Local development
 
-The goal is to provide a **user-friendly**, **visually appealing**, and **functional mockup** that allows customers to browse available services, schedule appointments, and explore hairstylist portfolios.  
+Debug builds already point to the remote stack through `gradle.properties`.
 
----
+Build a debug APK:
 
-## Purpose
-This prototype aims to address the inefficiencies of manual appointment scheduling (via phone calls or messages) by offering a digital solution that enhances both **customer convenience** and **stylist workflow management**.
-
----
-
-##  Key Features (Prototype Scope)
-- **Online Booking Interface:** Displays available services and time slots.  
-- **Admin Dashboard Mockup:** For hairstylists to manage schedules, clients, and services.  
-- **Customer Profile Pages:** Includes booking history and saved preferences.  
-- **Portfolio Section:** Showcases hairstylist work (before/after images).  
-- **Branding and UI Design:** Consistent with the hairstylist’s identity and aesthetic.  
-- **Optional Blog Section:** Placeholder for future stylist updates or tips.  
-
-
-
-
-
----
-
-##  Team Members
-
-| Name | Student ID | GitHub |
-|------|-------------|--------|
-| **Gustavo Miranda** | 101488574 | [GitHub](https://github.com/GustavoMiranda2) |
-| **Renan Makoto** | 101536279 | [GitHub](https://github.com/renanmakoto) |
-| **Lucas Tavares Criscuolo** | 101500671 | [GitHub](https://github.com/Stuaarts) |
-| **Mateus de Souza Carvalho Melco Sfeir** | 101484904 | [GitHub](https://github.com/mateussfeir) |
-
-
-
-
-
----
-
-##  Note
-This repository contains only the **UI prototype** for the Hair Stylist Booking Web Application. The **backend logic and database integration** will be developed and integrated in the next project phase.
-
----
-
-**© 2025 Group 33 — BrazWebDes Hair Stylist Booking Web Application**
-
-
-## Mobile API Connection (Android)
-- Default API URL in the app: `http://10.0.2.2:8000` (Android emulator -> host machine).
-- For physical devices, build with your machine IP:
-
-```bash
-./gradlew :app:assembleDebug -PapiBaseUrl=http://192.168.1.50:8000
+```powershell
+cd mobile
+.\gradlew.bat :app:assembleDebug
 ```
 
-- Backend must include that host in `ALLOWED_HOSTS`.
+## Release defaults
+
+Release builds are preconfigured to use:
+
+- `apiBaseUrl=https://brazdes-api-cvedaxfjc6gedwhn.canadacentral-01.azurewebsites.net`
+- `webBaseUrl=https://t36-comp-3078-w26.vercel.app`
+- `privacyPolicyUrl=https://stuaarts.github.io/PrivacyPolicy/`
+- `accountDeletionUrl=https://t36-comp-3078-w26.vercel.app/account/delete`
+
+## Play Store release
+
+Before generating the final Play Store bundle, create your signing files:
+
+1. Generate or obtain the upload keystore.
+2. Create `mobile/keystore.properties` from `mobile/keystore.properties.example`.
+3. Build the release bundle:
+
+```powershell
+cd mobile
+.\gradlew.bat :app:bundleRelease
+```
+
+The full publication checklist is in [PLAYSTORE_RELEASE.md](/c:/capstone/T36_COMP3078_W26/mobile/PLAYSTORE_RELEASE.md).
