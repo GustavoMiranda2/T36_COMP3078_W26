@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .booking_notifications import make_booking_action_token
-from .models import Appointment, AppointmentStatus, Service, User
+from .models import AddOn, Appointment, AppointmentStatus, BlogPost, PortfolioItem, Service, Testimonial, User
 
 
 class BookingAvailabilityTests(TestCase):
@@ -196,3 +196,113 @@ class BookingAvailabilityTests(TestCase):
         appointment.refresh_from_db()
         self.assertEqual(appointment.status, AppointmentStatus.CANCELLED)
         self.assertEqual(response.data["result"], "cancelled")
+
+    def test_customer_account_deletion_removes_user_appointments_and_testimonials(self):
+        self.client.force_authenticate(self.user)
+        appointment = Appointment.objects.create(
+            user=self.user,
+            service=self.service,
+            start_time=timezone.make_aware(datetime(2026, 4, 2, 10, 0), timezone.get_current_timezone()),
+            end_time=timezone.make_aware(datetime(2026, 4, 2, 10, 45), timezone.get_current_timezone()),
+            total_price_cents=5000,
+            total_duration_minutes=45,
+            status=AppointmentStatus.CONFIRMED,
+        )
+        testimonial = Testimonial.objects.create(
+            user=self.user,
+            service=self.service,
+            author_name="Client",
+            author_email=self.user.email,
+            quote="Great cut.",
+            rating=5,
+        )
+
+        response = self.client.delete("/auth/account")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["result"], "deleted")
+        self.assertFalse(User.objects.filter(id=self.user.id).exists())
+        self.assertFalse(Appointment.objects.filter(id=appointment.id).exists())
+        self.assertFalse(Testimonial.objects.filter(id=testimonial.id).exists())
+
+    def test_admin_account_deletion_endpoint_is_rejected(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.delete("/auth/account")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "Admin accounts must be removed through the administrative workflow.",
+        )
+
+
+class AdminContentManagementTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email="admin@example.com",
+            password="Admin1234!",
+            display_name="Admin",
+            role=User.Role.ADMIN,
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_admin_can_delete_service(self):
+        service = Service.objects.create(
+            name="Haircut",
+            description="Standard service",
+            duration_minutes=45,
+            price_cents=5000,
+            is_active=True,
+        )
+
+        response = self.client.delete(f"/admin/services/{service.id}")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Service.objects.filter(id=service.id).exists())
+
+    def test_admin_can_delete_add_on(self):
+        addon = AddOn.objects.create(
+            name="Beard trim",
+            description="Line up and trim",
+            category="Enhancement",
+            price_cents=1500,
+            duration_minutes=15,
+            is_active=True,
+        )
+
+        response = self.client.delete(f"/admin/add-ons/{addon.id}")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(AddOn.objects.filter(id=addon.id).exists())
+
+    def test_admin_can_delete_portfolio_item(self):
+        item = PortfolioItem.objects.create(
+            title="Fade cut",
+            subtitle="Before and after",
+            description="Sharp fade",
+            image_url="https://example.com/fade.jpg",
+            tag="Fade",
+            is_published=True,
+        )
+
+        response = self.client.delete(f"/admin/portfolio-items/{item.id}")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(PortfolioItem.objects.filter(id=item.id).exists())
+
+    def test_admin_can_delete_blog_post(self):
+        post = BlogPost.objects.create(
+            title="Hair care tips",
+            excerpt="Keep your fade clean.",
+            body="Full article body.",
+            cover_image_url="https://example.com/blog.jpg",
+            created_by=self.admin,
+            is_published=True,
+        )
+
+        response = self.client.delete(f"/admin/blog-posts/{post.id}")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(BlogPost.objects.filter(id=post.id).exists())

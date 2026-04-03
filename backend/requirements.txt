@@ -8,3 +8,4 @@ gunicorn>=22.0,<24.0
 whitenoise>=6.6,<7.0
 django-cors-headers>=4.3,<5.0
 resend>=2.26,<3.0
+django-storages[azure]>=1.14,<2.0

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import secrets
 from pathlib import Path
 
 import dj_database_url
@@ -34,26 +35,41 @@ for _key, _value in dotenv_merged.items():
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-=@4mt!se2n^8cg7ajo=)p^78735#+5&5ex$3uj-+2nz6(cduh7",
-)
-
-# SECURITY WARNING: don't run with debug turned on in production!
 def _env_bool(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "t", "yes", "y", "on"}
 
 
+def _env_list(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _env_int(value: str | None, default: int | None = None) -> int | None:
+    if value is None or not value.strip():
+        return default
+    return int(value.strip())
+
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = _env_bool(os.getenv("DEBUG"), True)
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("ALLOWED_HOSTS", "").split(",")
-    if host.strip()
-]
+# SECURITY WARNING: keep the secret key used in production secret!
+_configured_secret_key = os.getenv("SECRET_KEY", "").strip()
+if _configured_secret_key:
+    SECRET_KEY = _configured_secret_key
+elif DEBUG:
+    SECRET_KEY = secrets.token_urlsafe(50)
+else:
+    raise ImproperlyConfigured("SECRET_KEY is required when DEBUG is false.")
+
+ALLOWED_HOSTS = _env_list(os.getenv("ALLOWED_HOSTS"))
+website_hostname = os.getenv("WEBSITE_HOSTNAME", "").strip()
+is_azure_app_service = bool(website_hostname)
+if website_hostname:
+    ALLOWED_HOSTS = sorted(set(ALLOWED_HOSTS).union({website_hostname}))
 
 if DEBUG:
     # Include common local development hosts (web + Android emulator).
@@ -71,6 +87,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'corsheaders',
     'rest_framework',
     'api',
@@ -88,14 +105,36 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-_configured_cors_origins = [
-    origin.strip()
-    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
-    if origin.strip()
-]
-CORS_ALLOWED_ORIGINS = sorted(
-    set(_configured_cors_origins).union({"http://localhost:3000", "http://127.0.0.1:3000"})
+_configured_cors_origins = _env_list(os.getenv("CORS_ALLOWED_ORIGINS"))
+if DEBUG:
+    _configured_cors_origins = list(
+        sorted(set(_configured_cors_origins).union({"http://localhost:3000", "http://127.0.0.1:3000"}))
+    )
+CORS_ALLOWED_ORIGINS = _configured_cors_origins
+
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
+_configured_csrf_origins = _env_list(os.getenv("CSRF_TRUSTED_ORIGINS"))
+if FRONTEND_BASE_URL.startswith(("http://", "https://")):
+    _configured_csrf_origins = list(sorted(set(_configured_csrf_origins).union({FRONTEND_BASE_URL})))
+CSRF_TRUSTED_ORIGINS = _configured_csrf_origins
+
+azure_secure_defaults = is_azure_app_service and not DEBUG
+USE_X_FORWARDED_HOST = _env_bool(os.getenv("USE_X_FORWARDED_HOST"), azure_secure_defaults)
+USE_SECURE_PROXY_SSL_HEADER = _env_bool(
+    os.getenv("USE_SECURE_PROXY_SSL_HEADER"),
+    azure_secure_defaults,
 )
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") if USE_SECURE_PROXY_SSL_HEADER else None
+SECURE_SSL_REDIRECT = _env_bool(os.getenv("SECURE_SSL_REDIRECT"), azure_secure_defaults)
+SESSION_COOKIE_SECURE = _env_bool(os.getenv("SESSION_COOKIE_SECURE"), azure_secure_defaults)
+CSRF_COOKIE_SECURE = _env_bool(os.getenv("CSRF_COOKIE_SECURE"), azure_secure_defaults)
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "3600" if azure_secure_defaults else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
+    os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS"),
+    False,
+)
+SECURE_HSTS_PRELOAD = _env_bool(os.getenv("SECURE_HSTS_PRELOAD"), False)
+SECURE_REFERRER_POLICY = os.getenv("SECURE_REFERRER_POLICY", "same-origin")
 
 ROOT_URLCONF = 'config.urls'
 
@@ -179,9 +218,64 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 MEDIA_ROOT = BASE_DIR / "media"
+
+AZURE_CONNECTION_STRING = os.getenv("AZURE_CONNECTION_STRING", "").strip()
+AZURE_ACCOUNT_NAME = os.getenv("AZURE_ACCOUNT_NAME", "").strip()
+AZURE_ACCOUNT_KEY = os.getenv("AZURE_ACCOUNT_KEY", "").strip()
+AZURE_SAS_TOKEN = os.getenv("AZURE_SAS_TOKEN", "").strip()
+AZURE_MEDIA_CONTAINER = os.getenv("AZURE_MEDIA_CONTAINER", "media").strip()
+AZURE_MEDIA_LOCATION = os.getenv("AZURE_MEDIA_LOCATION", "").strip().strip("/")
+AZURE_MEDIA_CUSTOM_DOMAIN = os.getenv("AZURE_MEDIA_CUSTOM_DOMAIN", "").strip()
+AZURE_MEDIA_URL_EXPIRATION_SECS = _env_int(os.getenv("AZURE_MEDIA_URL_EXPIRATION_SECS"))
+AZURE_MEDIA_OVERWRITE_FILES = _env_bool(os.getenv("AZURE_MEDIA_OVERWRITE_FILES"), False)
+
+USE_AZURE_MEDIA_STORAGE = bool(
+    AZURE_CONNECTION_STRING or (AZURE_ACCOUNT_NAME and (AZURE_ACCOUNT_KEY or AZURE_SAS_TOKEN))
+)
+SERVE_LOCAL_MEDIA_FILES = not USE_AZURE_MEDIA_STORAGE
+
+if USE_AZURE_MEDIA_STORAGE and not AZURE_MEDIA_CONTAINER:
+    raise ImproperlyConfigured("AZURE_MEDIA_CONTAINER is required when Azure media storage is enabled.")
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": str(MEDIA_ROOT),
+            "base_url": MEDIA_URL,
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+if USE_AZURE_MEDIA_STORAGE:
+    azure_media_options: dict[str, object] = {
+        "azure_container": AZURE_MEDIA_CONTAINER,
+        "overwrite_files": AZURE_MEDIA_OVERWRITE_FILES,
+    }
+    if AZURE_CONNECTION_STRING:
+        azure_media_options["connection_string"] = AZURE_CONNECTION_STRING
+    else:
+        azure_media_options["account_name"] = AZURE_ACCOUNT_NAME
+        if AZURE_ACCOUNT_KEY:
+            azure_media_options["account_key"] = AZURE_ACCOUNT_KEY
+        if AZURE_SAS_TOKEN:
+            azure_media_options["sas_token"] = AZURE_SAS_TOKEN
+    if AZURE_MEDIA_LOCATION:
+        azure_media_options["location"] = AZURE_MEDIA_LOCATION
+    if AZURE_MEDIA_CUSTOM_DOMAIN:
+        azure_media_options["custom_domain"] = AZURE_MEDIA_CUSTOM_DOMAIN
+    if AZURE_MEDIA_URL_EXPIRATION_SECS is not None:
+        azure_media_options["expiration_secs"] = AZURE_MEDIA_URL_EXPIRATION_SECS
+
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.azure_storage.AzureStorage",
+        "OPTIONS": azure_media_options,
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -204,7 +298,6 @@ SIMPLE_JWT = {
     'SIGNING_KEY': os.getenv("JWT_SECRET_KEY", SECRET_KEY),
 }
 
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
 BUSINESS_NAME = os.getenv("BUSINESS_NAME", "BrazWebDes Hairstylist Booking")
 BUSINESS_ADDRESS = os.getenv("BUSINESS_ADDRESS", "230 Woolner Avenue, Toronto, ON")
 BUSINESS_PHONE = os.getenv("BUSINESS_PHONE", "")

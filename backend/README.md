@@ -26,6 +26,7 @@ Required variables:
 - `DATABASE_URL` (PostgreSQL connection string)
 - `ALLOWED_HOSTS`
 - `JWT_SECRET_KEY` (or use Django `SECRET_KEY`)
+- `FRONTEND_BASE_URL`
 
 Example:
 ```env
@@ -35,11 +36,36 @@ DATABASE_URL=postgres://user:password@localhost:5432/capstone_db
 ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
+Production/security variables:
+
+- `CORS_ALLOWED_ORIGINS`
+- `CSRF_TRUSTED_ORIGINS`
+- `USE_X_FORWARDED_HOST`
+- `USE_SECURE_PROXY_SSL_HEADER`
+- `SECURE_SSL_REDIRECT`
+- `SESSION_COOKIE_SECURE`
+- `CSRF_COOKIE_SECURE`
+- `SECURE_HSTS_SECONDS`
+- `SECURE_HSTS_INCLUDE_SUBDOMAINS`
+- `SECURE_HSTS_PRELOAD`
+- `SECURE_REFERRER_POLICY`
+- `MEDIA_URL`
+
+Production media storage variables:
+
+- `AZURE_CONNECTION_STRING` or (`AZURE_ACCOUNT_NAME` + `AZURE_ACCOUNT_KEY`) or (`AZURE_ACCOUNT_NAME` + `AZURE_SAS_TOKEN`)
+- `AZURE_MEDIA_CONTAINER`
+- `AZURE_MEDIA_LOCATION`
+- `AZURE_MEDIA_CUSTOM_DOMAIN`
+- `AZURE_MEDIA_URL_EXPIRATION_SECS`
+- `AZURE_MEDIA_OVERWRITE_FILES`
+
 ---
 
 ## Authentication Flow
 - `POST /auth/register` creates a user with email + password.
 - `POST /auth/login` returns `access` and `refresh` JWTs and user data.
+- `DELETE /auth/account` deletes the authenticated customer account and related booking/testimonial data.
 - All appointment endpoints require `Authorization: Bearer <access-token>`.
 
 ---
@@ -96,3 +122,12 @@ BOOKING_REPLY_TO=support@example.com
 - The `from` address must belong to a verified domain in Resend.
 - Current email action links send users into the authenticated web flow.
 - Public one-click cancel/reschedule links are not implemented yet and should use signed tokens when added.
+
+## Azure Notes
+
+- Use a PostgreSQL connection string with SSL enabled, for example `?sslmode=require`.
+- On Azure App Service, set `USE_X_FORWARDED_HOST=true` and `USE_SECURE_PROXY_SSL_HEADER=true`.
+- In production, set `DEBUG=false`, use real public domains in `ALLOWED_HOSTS`, and keep secrets only in Azure configuration.
+- For durable uploads, configure Azure Blob media storage. When `AZURE_CONNECTION_STRING` or account credentials are present, Django stores uploaded admin images in the configured blob container instead of the app's local disk.
+- `AZURE_MEDIA_CONTAINER` must already exist and should allow public read access if you want stable, non-expiring image URLs for web/mobile previews.
+- Keep `MEDIA_URL=/media/` for local development. The app only serves local `/media/...` routes when Azure media storage is not enabled.

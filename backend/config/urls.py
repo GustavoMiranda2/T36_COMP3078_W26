@@ -24,5 +24,5 @@ urlpatterns = [
     path('django-admin/', admin.site.urls),
 ]
 
-if settings.MEDIA_URL:
+if settings.SERVE_LOCAL_MEDIA_FILES and settings.MEDIA_URL:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
