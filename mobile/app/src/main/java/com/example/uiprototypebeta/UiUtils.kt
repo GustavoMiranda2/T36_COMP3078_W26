@@ -1,7 +1,11 @@
-package com.example.uiprototypebeta
+package com.brazwebdes.hairstylistbooking
 
+import android.view.View
 import android.content.Context
 import android.util.TypedValue
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,4 +49,16 @@ fun parseIsoDate(raw: String): Date? {
         }
     }
     return null
+}
+
+fun View.applyStatusBarTopInset() {
+    val initialTopPadding = paddingTop
+    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+        val topInset = insets.getInsets(
+            WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
+        ).top
+        view.updatePadding(top = initialTopPadding + topInset)
+        insets
+    }
+    ViewCompat.requestApplyInsets(this)
 }

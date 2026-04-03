@@ -1,10 +1,11 @@
-package com.example.uiprototypebeta
+package com.brazwebdes.hairstylistbooking
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.example.uiprototypebeta.databinding.ActivitySignUpBinding
+import com.brazwebdes.hairstylistbooking.databinding.ActivitySignUpBinding
 
 class SignUpActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySignUpBinding
@@ -13,6 +14,7 @@ class SignUpActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.toolbar.applyStatusBarTopInset()
 
         binding.btnCreateAccount.setOnClickListener {
             val displayName = binding.etName.text?.toString()?.trim().orEmpty()
@@ -52,5 +54,14 @@ class SignUpActivity : AppCompatActivity() {
         }
 
         binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.btnPrivacyPolicy.setOnClickListener { openExternalUrl(ApiClient.privacyPolicyUrl) }
+    }
+
+    private fun openExternalUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Unable to open link", Toast.LENGTH_LONG).show()
+        }
     }
 }

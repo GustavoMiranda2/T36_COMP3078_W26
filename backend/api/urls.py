@@ -6,6 +6,7 @@ from .views import (
     AdminAddOnListCreateView,
     AdminAppointmentListCreateView,
     AdminAppointmentUpdateView,
+    AccountDeletionView,
     AdminBlogPostDetailView,
     AdminBlogPostListCreateView,
     AdminImageUploadView,
@@ -41,6 +42,7 @@ urlpatterns = [
     path("auth/register", RegisterView.as_view(), name="auth-register"),
     path("auth/login", LoginView.as_view(), name="auth-login"),
     path("auth/token/refresh", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/account", AccountDeletionView.as_view(), name="auth-account"),
 
     path("home-content", HomeContentView.as_view(), name="home-content"),
     path("services", ServiceListView.as_view(), name="services-list"),

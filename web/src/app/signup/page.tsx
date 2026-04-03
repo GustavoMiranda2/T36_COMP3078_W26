@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRegister } from '../api';
@@ -92,6 +93,14 @@ function SignUpContent() {
           {loading ? 'Creating account...' : 'Create account'}
         </button>
       </form>
+
+      <p className="text-sm text-[#5a5872]">
+        By creating an account, you agree to the{' '}
+        <Link href="/privacy-policy" className="font-semibold text-[#5b4fe5] hover:underline">
+          privacy policy
+        </Link>
+        .
+      </p>
     </div>
   );
 }

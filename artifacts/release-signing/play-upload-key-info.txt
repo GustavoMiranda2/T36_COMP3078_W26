@@ -1,0 +1,1 @@
+Play upload keystore generated on: 2026-04-02 14:35:58 -04:00 Keystore: c:\Users\Lucas\College\T36_COMP3078_W26\mobile\keystore\play-upload-key.jks Alias: playupload Store password: 9aFUwDn5tP3Vaa5SctZd4E4 Key password: YjgvGpwJ6GjTWAVfVN3IKkm Keep this file and the .jks file safe. You will need them for future Play uploads unless you rotate the upload key.

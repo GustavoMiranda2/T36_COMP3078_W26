@@ -14,8 +14,9 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="wrap_content"
             android:background="@android:color/white"
+            android:minHeight="56dp"
             app:title="Hairstylist Booking"
             app:titleTextColor="@color/brand_text"
             app:navigationIcon="@drawable/ic_menu_24"/>
@@ -71,7 +72,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:contentDescription="@string/user_login"
+                android:contentDescription="@string/user_sign_in"
                 android:duplicateParentState="true"
                 android:src="@drawable/ic_login_24"
                 android:tint="@color/nav_item_icon" />
@@ -82,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:duplicateParentState="true"
-                android:text="@string/user_login"
+                android:text="@string/user_sign_in"
                 android:textColor="@color/nav_item_text"
                 android:textSize="16sp" />
         </LinearLayout>
@@ -104,7 +105,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:contentDescription="@string/admin_login"
+                android:contentDescription="@string/admin_sign_in"
                 android:duplicateParentState="true"
                 android:src="@drawable/ic_dashboard_24"
                 android:tint="@color/nav_item_icon" />
@@ -115,7 +116,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:duplicateParentState="true"
-                android:text="@string/admin_login"
+                android:text="@string/admin_sign_in"
                 android:textColor="@color/nav_item_text"
                 android:textSize="16sp" />
         </LinearLayout>

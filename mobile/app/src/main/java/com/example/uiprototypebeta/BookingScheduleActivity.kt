@@ -1,4 +1,4 @@
-package com.example.uiprototypebeta
+package com.brazwebdes.hairstylistbooking
 
 import android.content.Intent
 import android.os.Bundle
@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.CalendarView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.example.uiprototypebeta.databinding.ActivityBookingScheduleBinding
+import com.brazwebdes.hairstylistbooking.databinding.ActivityBookingScheduleBinding
 import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.text.SimpleDateFormat
@@ -37,6 +37,7 @@ class BookingScheduleActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityBookingScheduleBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.toolbar.applyStatusBarTopInset()
 
         rescheduleId = intent.getStringExtra("reschedule_id")
         serviceId = intent.getStringExtra("service_id").orEmpty()

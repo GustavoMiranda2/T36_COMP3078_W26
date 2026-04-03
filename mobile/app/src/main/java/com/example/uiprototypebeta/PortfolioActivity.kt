@@ -1,4 +1,4 @@
-package com.example.uiprototypebeta
+package com.brazwebdes.hairstylistbooking
 
 import android.content.Intent
 import android.graphics.Typeface
@@ -55,10 +55,13 @@ class PortfolioActivity : BaseDrawerActivity() {
 
         manageButton.visibility = if (AdminSession.isLoggedIn) android.view.View.VISIBLE else android.view.View.GONE
         manageButton.setOnClickListener {
-            startActivity(Intent(this, WebAdminActivity::class.java).apply {
-                putExtra("title", "Portfolio and reviews")
-                putExtra("path", "/admin/dashboard/portfolio")
-            })
+            startActivity(
+                AdminDashboardActivity.intent(
+                    context = this,
+                    title = "Portfolio and reviews",
+                    path = "/admin/dashboard/portfolio"
+                )
+            )
         }
 
         ratingSpinner.adapter = ArrayAdapter(

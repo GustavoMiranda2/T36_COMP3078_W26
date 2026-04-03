@@ -64,3 +64,31 @@ This repository contains only the **UI prototype** for the Hair Stylist Booking 
 ```
 
 - Backend must include that host in `ALLOWED_HOSTS`.
+
+## Release / Play Console Build
+
+Release builds now require explicit production URLs:
+
+```bash
+./gradlew :app:bundleRelease \
+  -PapiBaseUrl=https://api.example.com \
+  -PwebBaseUrl=https://app.example.com
+```
+
+Optional release signing properties:
+
+```bash
+./gradlew :app:bundleRelease \
+  -PapiBaseUrl=https://api.example.com \
+  -PwebBaseUrl=https://app.example.com \
+  -PreleaseStoreFile=/absolute/path/upload-keystore.jks \
+  -PreleaseStorePassword=... \
+  -PreleaseKeyAlias=... \
+  -PreleaseKeyPassword=...
+```
+
+Notes:
+
+- Debug builds still default to emulator loopback URLs.
+- Release builds disable cleartext traffic and must use HTTPS endpoints.
+- The app exposes privacy policy and account deletion pages from the deployed web frontend.

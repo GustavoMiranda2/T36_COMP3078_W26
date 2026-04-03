@@ -1,4 +1,4 @@
-package com.example.uiprototypebeta
+package com.brazwebdes.hairstylistbooking
 
 import okhttp3.Call
 import okhttp3.Callback
@@ -16,6 +16,8 @@ object ApiClient {
 
     var baseUrl: String = BuildConfig.API_BASE_URL.trimEnd('/')
     var webBaseUrl: String = BuildConfig.WEB_BASE_URL.trimEnd('/')
+    var privacyPolicyUrl: String = BuildConfig.PRIVACY_POLICY_URL.trim()
+    var accountDeletionUrl: String = BuildConfig.ACCOUNT_DELETION_URL.trim()
 
     private val client = OkHttpClient()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -25,6 +27,60 @@ object ApiClient {
 
     @Volatile
     var refreshToken: String? = null
+
+    private enum class RefreshStatus {
+        SUCCESS,
+        INVALID,
+        NETWORK_ERROR,
+    }
+
+    private data class RefreshResult(
+        val status: RefreshStatus,
+        val accessToken: String? = null,
+    )
+
+    fun setAuthTokens(access: String, refresh: String) {
+        accessToken = access
+        refreshToken = refresh
+    }
+
+    fun clearAuthTokens() {
+        accessToken = null
+        refreshToken = null
+    }
+
+    fun validateStoredSession(
+        onValid: () -> Unit,
+        onInvalid: (String) -> Unit,
+        onNetworkError: (String) -> Unit
+    ) {
+        val refresh = AppSessionStore.pendingRefreshToken()
+        if (refresh.isNullOrBlank()) {
+            onInvalid("Saved session not found.")
+            return
+        }
+
+        Thread {
+            val refreshResult = refreshAccessTokenBlocking(
+                refreshOverride = refresh,
+                persistAccessToken = false,
+                clearSessionOnInvalid = false
+            )
+            when (refreshResult.status) {
+                RefreshStatus.SUCCESS -> {
+                    AppSessionStore.activatePendingSession(refreshResult.accessToken)
+                    onValid()
+                }
+                RefreshStatus.INVALID -> {
+                    AppSessionStore.clear()
+                    onInvalid("Session expired. Please sign in again.")
+                }
+                RefreshStatus.NETWORK_ERROR -> {
+                    onNetworkError("Unable to verify the saved session right now.")
+                }
+            }
+        }.start()
+    }
 
     fun login(
         email: String,
@@ -52,6 +108,13 @@ object ApiClient {
             put("password", password)
         }
         post("/auth/register", body, authenticated = false, onSuccess = onSuccess, onError = onError)
+    }
+
+    fun deleteAccount(
+        onSuccess: (JSONObject) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        delete("/auth/account", onSuccess = onSuccess, onError = onError)
     }
 
     fun getHomeContent(
@@ -306,6 +369,25 @@ object ApiClient {
         )
     }
 
+    private fun delete(
+        path: String,
+        onSuccess: (JSONObject) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        enqueueJsonRequest(
+            authenticated = true,
+            buildRequest = { token ->
+                Request.Builder()
+                    .url(url(path))
+                    .delete()
+                    .applyAuthHeader(token, authenticated = true)
+                    .build()
+            },
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
     private fun enqueueJsonRequest(
         authenticated: Boolean,
         buildRequest: (String?) -> Request,
@@ -361,16 +443,26 @@ object ApiClient {
             override fun onResponse(call: Call, response: Response) {
                 val bodyString = response.body?.string().orEmpty()
 
-                if (response.code == 401 && authenticated && !retried && refreshAccessTokenBlocking()) {
-                    response.close()
-                    performRequest(
-                        authenticated = authenticated,
-                        buildRequest = buildRequest,
-                        handleBody = handleBody,
-                        onError = onError,
-                        retried = true
-                    )
-                    return
+                if (response.code == 401 && authenticated && !retried) {
+                    when (val refreshResult = refreshAccessTokenBlocking().status) {
+                        RefreshStatus.SUCCESS -> {
+                            response.close()
+                            performRequest(
+                                authenticated = authenticated,
+                                buildRequest = buildRequest,
+                                handleBody = handleBody,
+                                onError = onError,
+                                retried = true
+                            )
+                            return
+                        }
+                        RefreshStatus.INVALID -> {
+                            response.close()
+                            onError("Session expired. Please sign in again.")
+                            return
+                        }
+                        RefreshStatus.NETWORK_ERROR -> Unit
+                    }
                 }
 
                 if (response.isSuccessful) {
@@ -383,24 +475,43 @@ object ApiClient {
     }
 
     @Synchronized
-    private fun refreshAccessTokenBlocking(): Boolean {
-        val refresh = refreshToken ?: return false
+    private fun refreshAccessTokenBlocking(
+        refreshOverride: String? = null,
+        persistAccessToken: Boolean = true,
+        clearSessionOnInvalid: Boolean = true
+    ): RefreshResult {
+        val refresh = refreshOverride ?: refreshToken ?: return RefreshResult(RefreshStatus.INVALID)
         return try {
             val request = Request.Builder()
                 .url(url("/auth/token/refresh"))
                 .post(JSONObject().put("refresh", refresh).toString().toRequestBody(jsonType))
                 .build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return false
+                if (!response.isSuccessful) {
+                    if (response.code in listOf(400, 401)) {
+                        if (clearSessionOnInvalid) {
+                            AppSessionStore.clear()
+                        }
+                        return RefreshResult(RefreshStatus.INVALID)
+                    }
+                    return RefreshResult(RefreshStatus.NETWORK_ERROR)
+                }
                 val bodyString = response.body?.string().orEmpty()
                 val json = JSONObject(bodyString)
                 val nextAccess = json.optString("access")
-                if (nextAccess.isBlank()) return false
-                accessToken = nextAccess
-                true
+                if (nextAccess.isBlank()) {
+                    if (clearSessionOnInvalid) {
+                        AppSessionStore.clear()
+                    }
+                    return RefreshResult(RefreshStatus.INVALID)
+                }
+                if (persistAccessToken) {
+                    AppSessionStore.updateAccessToken(nextAccess)
+                }
+                RefreshResult(RefreshStatus.SUCCESS, nextAccess)
             }
         } catch (_: Exception) {
-            false
+            RefreshResult(RefreshStatus.NETWORK_ERROR)
         }
     }
 
