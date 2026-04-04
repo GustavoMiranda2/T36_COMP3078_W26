@@ -1,4 +1,4 @@
-package com.brazwebdes.hairstylistbooking
+package com.example.uiprototypebeta
 
 import org.junit.Test
 

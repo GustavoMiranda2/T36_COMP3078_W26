@@ -89,12 +89,6 @@ function LoginContent() {
         >
           Go to sign up
         </Link>
-        <p>
-          Privacy policy:{' '}
-          <Link className="font-semibold text-[#5b4fe5] hover:underline" href="/privacy-policy">
-            read here
-          </Link>
-        </p>
       </div>
     </div>
   );

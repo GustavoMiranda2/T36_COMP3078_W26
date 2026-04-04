@@ -13,23 +13,17 @@ import androidx.annotation.LayoutRes
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.navigation.NavigationView
-import kotlin.math.max
 
 open class BaseDrawerActivity : AppCompatActivity() {
 
     private lateinit var drawerLayout: DrawerLayout
-    private lateinit var drawerMenuContainer: View
     private lateinit var toolbar: MaterialToolbar
     private lateinit var navView: NavigationView
     private lateinit var adminFooter: View
     private lateinit var userFooter: View
-    private lateinit var adminLabel: TextView
     private lateinit var userLabel: TextView
     private lateinit var contentFrame: FrameLayout
     private lateinit var toggle: ActionBarDrawerToggle
@@ -39,12 +33,10 @@ open class BaseDrawerActivity : AppCompatActivity() {
         setContentView(R.layout.activity_drawer_base)
 
         drawerLayout = findViewById(R.id.drawerLayout)
-        drawerMenuContainer = findViewById(R.id.drawerMenuContainer)
         toolbar = findViewById(R.id.toolbar)
         navView = findViewById(R.id.navView)
         adminFooter = findViewById(R.id.m_admin)
         userFooter = findViewById(R.id.m_user)
-        adminLabel = findViewById(R.id.adminLabel)
         userLabel = findViewById(R.id.userLabel)
         contentFrame = findViewById(R.id.contentFrame)
 
@@ -69,21 +61,15 @@ open class BaseDrawerActivity : AppCompatActivity() {
         navView.setNavigationItemSelectedListener { onDrawerItem(it) }
         adminFooter.setOnClickListener { onAdminClicked() }
         userFooter.setOnClickListener { onUserClicked() }
-        restoreStoredSessionIfNeeded()
-        syncAuthUi()
-        toolbar.applyStatusBarTopInset()
-        applyDrawerBottomInset()
+        updateUserFooterLabel()
+        syncAuthVisibility()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
                     drawerLayout.closeDrawer(GravityCompat.END)
                 } else {
-                    if (!isTaskRoot) {
-                        finish()
-                    } else {
-                        moveTaskToBack(true)
-                    }
+                    goToLoginScreen()
                 }
             }
         })
@@ -91,8 +77,8 @@ open class BaseDrawerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        restoreStoredSessionIfNeeded()
-        syncAuthUi()
+        updateUserFooterLabel()
+        syncAuthVisibility()
     }
 
     protected fun setContentLayout(@LayoutRes layoutRes: Int) {
@@ -136,8 +122,10 @@ open class BaseDrawerActivity : AppCompatActivity() {
             if (this !is AdminDashboardActivity) {
                 startActivity(AdminDashboardActivity.intent(this))
             }
-        } else if (!UserSession.isLoggedIn) {
-            startActivity(Intent(this, LoginActivity::class.java))
+        } else {
+            if (this !is LoginActivity) {
+                startActivity(Intent(this, LoginActivity::class.java))
+            }
         }
         drawerLayout.closeDrawer(GravityCompat.END)
     }
@@ -146,8 +134,8 @@ open class BaseDrawerActivity : AppCompatActivity() {
         clearNavSelection()
         if (UserSession.isLoggedIn) {
             if (this !is UserDashboardActivity) startActivity(Intent(this, UserDashboardActivity::class.java))
-        } else if (!AdminSession.isLoggedIn) {
-            goToLoginScreen()
+        } else {
+            if (this !is LoginActivity) goToLoginScreen()
         }
         drawerLayout.closeDrawer(GravityCompat.END)
     }
@@ -170,8 +158,9 @@ open class BaseDrawerActivity : AppCompatActivity() {
     private fun performLogout() {
         clearNavSelection()
         showLogoutOption(false)
-        AppSessionStore.clear(this)
-        syncAuthUi()
+        AdminSession.clear()
+        UserSession.clear()
+        updateUserFooterLabel()
         drawerLayout.closeDrawer(GravityCompat.END)
         val intent = Intent(this, LoginActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -180,47 +169,23 @@ open class BaseDrawerActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun restoreStoredSessionIfNeeded() {
-        if (UserSession.isLoggedIn || AdminSession.isLoggedIn) {
-            return
-        }
-        AppSessionStore.activatePendingSession()
-    }
-
     protected fun showLogoutOption(visible: Boolean) {
         navView.menu.findItem(R.id.m_logout)?.isVisible = visible
     }
 
-    protected fun syncAuthUi() {
-        val adminLoggedIn = AdminSession.isLoggedIn
-        val userLoggedIn = UserSession.isLoggedIn
-        val isAnyoneLoggedIn = adminLoggedIn || userLoggedIn
+    private fun syncAuthVisibility() {
+        val isAdminLoggedIn = AdminSession.isLoggedIn
+        val isUserLoggedIn = UserSession.isLoggedIn
+        showLogoutOption(isAdminLoggedIn || isUserLoggedIn)
+        adminFooter.visibility = if (isAdminLoggedIn) View.VISIBLE else View.GONE
+        userFooter.visibility = if (isAdminLoggedIn) View.GONE else View.VISIBLE
+    }
 
-        showLogoutOption(isAnyoneLoggedIn)
-
-        when {
-            adminLoggedIn -> {
-                adminFooter.visibility = View.VISIBLE
-                userFooter.visibility = View.GONE
-                adminLabel.text = getString(R.string.admin_dashboard)
-            }
-            userLoggedIn -> {
-                adminFooter.visibility = View.GONE
-                userFooter.visibility = View.VISIBLE
-                userLabel.text = getString(R.string.user_dashboard)
-            }
-            else -> {
-                adminFooter.visibility = View.GONE
-                userFooter.visibility = View.VISIBLE
-                userLabel.text = getString(R.string.user_sign_in)
-            }
-        }
-
-        if (adminFooter.visibility != View.VISIBLE) {
-            adminFooter.isSelected = false
-        }
-        if (userFooter.visibility != View.VISIBLE) {
-            userFooter.isSelected = false
+    protected fun updateUserFooterLabel() {
+        userLabel.text = if (UserSession.isLoggedIn && UserSession.displayName.isNotBlank()) {
+            "${UserSession.displayName} logged in"
+        } else {
+            getString(R.string.user_login)
         }
     }
 
@@ -230,20 +195,6 @@ open class BaseDrawerActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
-    }
-
-    private fun applyDrawerBottomInset() {
-        val baseBottomPadding = drawerMenuContainer.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(drawerMenuContainer) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val gestures = insets.getInsets(
-                WindowInsetsCompat.Type.systemGestures() or WindowInsetsCompat.Type.tappableElement()
-            )
-            val bottomInset = max(systemBars.bottom, gestures.bottom)
-            view.updatePadding(bottom = baseBottomPadding + bottomInset)
-            insets
-        }
-        ViewCompat.requestApplyInsets(drawerMenuContainer)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
