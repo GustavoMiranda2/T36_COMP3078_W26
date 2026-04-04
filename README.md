@@ -98,5 +98,9 @@ There is only one normal sign-in flow now:
 Registration is user-only:
 
 - admin accounts cannot be created through sign-up
-- admin accounts must be created manually in the database or with `python manage.py createsuperuser`
-- no default admin credentials are committed to this repository
+- admin accounts must be added manually in code/database
+
+Current seed admin account:
+
+- Email: `admin@brazwebdes.com`
+- Password: `Admin1234!`

@@ -220,10 +220,6 @@ function AppointmentRow({ appointment }: { appointment: AdminAppointmentData }) 
             {appointment.user.display_name || appointment.user.email}
           </p>
           <p className="text-sm text-[#5a5872]">
-            {appointment.user.email}
-            {appointment.user.phone ? ` · ${appointment.user.phone}` : ''}
-          </p>
-          <p className="text-sm text-[#5a5872]">
             {appointment.service.name} / {appointment.add_ons.length} add-ons /{' '}
             {formatCurrency(appointment.total_price_cents)}
           </p>

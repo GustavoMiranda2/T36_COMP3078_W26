@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
-import { apiLogin as apiLoginCall, clearSessionStorage, setTokens, type LoginResult } from './api';
+import { apiLogin as apiLoginCall, clearTokens, setTokens, type LoginResult } from './api';
 
 type Role = 'guest' | 'user' | 'admin';
 
@@ -102,7 +102,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         try {
           const result: LoginResult = await apiLoginCall(email, password);
           if (result.user.role !== 'ADMIN') {
-            clearSessionStorage();
+            clearTokens();
+            emitSessionChange();
             return 'This account does not have admin privileges.';
           }
           setTokens(result.access, result.refresh);
@@ -117,7 +118,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
 
       logout: () => {
-        clearSessionStorage();
+        clearTokens();
+        localStorage.removeItem('hb-role');
+        localStorage.removeItem('hb-name');
+        emitSessionChange();
       },
     }),
     [snapshot.displayName, snapshot.isReady, snapshot.role],

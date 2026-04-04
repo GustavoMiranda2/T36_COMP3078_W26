@@ -44,13 +44,14 @@ class Command(BaseCommand):
             Service.objects.all().delete()
             AddOn.objects.all().delete()
             User.objects.filter(role=User.Role.USER).delete()
+            User.objects.filter(email="admin@brazwebdes.com", is_superuser=False).delete()
 
         services = self._seed_services()
         add_ons = self._seed_add_ons()
         self._attach_add_ons(services, add_ons)
         users = self._seed_users()
         self._seed_portfolio()
-        self._seed_blog_posts(self._resolve_admin_author())
+        self._seed_blog_posts(users["admin"])
         self._seed_testimonials(users, services)
         self._seed_appointments(users, services, add_ons)
         self.stdout.write(self.style.SUCCESS("Seed data created successfully."))
@@ -199,27 +200,34 @@ class Command(BaseCommand):
     def _seed_users(self):
         users_data = [
             {
+                "email": "admin@brazwebdes.com",
+                "display_name": "Erik",
+                "password": "Admin1234!",
+                "role": User.Role.ADMIN,
+                "is_staff": True,
+            },
+            {
                 "email": "daniel@example.com",
                 "display_name": "Daniel Johnson",
-                "phone": "+1 (437) 555-0101",
+                "password": "Test1234!",
                 "role": User.Role.USER,
             },
             {
                 "email": "ahmed@example.com",
                 "display_name": "Ahmed Ali",
-                "phone": "+1 (437) 555-0102",
+                "password": "Test1234!",
                 "role": User.Role.USER,
             },
             {
                 "email": "michael@example.com",
                 "display_name": "Michael Reyes",
-                "phone": "+1 (437) 555-0103",
+                "password": "Test1234!",
                 "role": User.Role.USER,
             },
             {
                 "email": "christopher@example.com",
                 "display_name": "Christopher Wong",
-                "phone": "+1 (437) 555-0104",
+                "password": "Test1234!",
                 "role": User.Role.USER,
             },
         ]
@@ -230,38 +238,22 @@ class Command(BaseCommand):
             existing = User.objects.filter(email=email).first()
             if existing:
                 existing.display_name = item["display_name"]
-                existing.phone = item.get("phone", "")
                 existing.role = item["role"]
                 existing.is_staff = item.get("is_staff", False)
-                existing.set_unusable_password()
-                existing.save(update_fields=["display_name", "phone", "role", "is_staff", "password"])
+                existing.set_password(item["password"])
+                existing.save(update_fields=["display_name", "role", "is_staff", "password"])
                 user = existing
             else:
                 user = User.objects.create_user(
                     email=email,
-                    password=None,
+                    password=item["password"],
                     display_name=item["display_name"],
-                    phone=item.get("phone", ""),
                     role=item["role"],
                     is_staff=item.get("is_staff", False),
                 )
-            users[email] = user
+            users["admin" if item["role"] == User.Role.ADMIN else email] = user
             self.stdout.write(f"  User '{email}' ready")
         return users
-
-    def _resolve_admin_author(self):
-        admin_user = (
-            User.objects.filter(role=User.Role.ADMIN)
-            .order_by("-is_superuser", "-is_staff", "created_at")
-            .first()
-        )
-        if admin_user is None:
-            self.stdout.write(
-                self.style.WARNING(
-                    "No admin user found. Blog posts will be seeded without a created_by author."
-                )
-            )
-        return admin_user
 
     def _seed_portfolio(self):
         items = [
@@ -304,7 +296,7 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  Portfolio item '{item['title']}' ready")
 
-    def _seed_blog_posts(self, admin_user: User | None):
+    def _seed_blog_posts(self, admin_user: User):
         items = [
             {
                 "title": "How to make your fade last longer",
