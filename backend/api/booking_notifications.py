@@ -215,8 +215,10 @@ def _build_messages(
         return [_build_client_no_show_message(appointment)]
 
     client_message = _build_client_message(appointment, event_type, previous_start=previous_start)
-    owner_message = _build_owner_message(appointment, event_type, previous_start=previous_start)
-    return [client_message, owner_message]
+    messages: list[EmailMessage] = [client_message]
+    for email in _owner_emails():
+        messages.append(_build_owner_message(appointment, event_type, previous_start=previous_start, owner_email=email))
+    return messages
 
 
 def _build_client_message(
@@ -300,11 +302,17 @@ def _build_client_message(
     )
 
 
+def _owner_emails() -> list[str]:
+    raw = settings.RESEND_OWNER_EMAIL or ""
+    return [e.strip() for e in raw.split(",") if e.strip()]
+
+
 def _build_owner_message(
     appointment: Appointment,
     event_type: str,
     *,
     previous_start: datetime | None = None,
+    owner_email: str = "",
 ) -> EmailMessage:
     appointment_when = _format_when(appointment.start_time)
     previous_when = _format_when(previous_start) if previous_start else ""
@@ -355,13 +363,14 @@ def _build_owner_message(
             ("Open schedule", urls["reschedule"]),
         ],
     )
+    recipient = owner_email or settings.RESEND_OWNER_EMAIL
     return EmailMessage(
         recipient_type=AppointmentNotificationRecipient.OWNER,
-        recipient_email=settings.RESEND_OWNER_EMAIL,
+        recipient_email=recipient,
         subject=subject,
         html=html,
         text=text,
-        idempotency_key=f"{event_type.lower()}-{appointment.id}-owner",
+        idempotency_key=f"{event_type.lower()}-{appointment.id}-owner-{recipient}",
         payload={
             "booking_id": str(appointment.id),
             "event_type": event_type,
