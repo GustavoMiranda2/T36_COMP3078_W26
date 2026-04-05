@@ -149,7 +149,7 @@ export function EditableRow({
   onEdit,
   children,
 }: {
-  title: string;
+  title: ReactNode;
   subtitle: string;
   meta?: string;
   onEdit?: () => void;
