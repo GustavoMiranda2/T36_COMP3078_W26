@@ -46,7 +46,9 @@ async function proxy(request: NextRequest, path: string[]) {
   };
 
   if (method !== 'GET' && method !== 'HEAD') {
-    init.body = await request.text();
+    // Preserve binary bodies such as multipart/form-data uploads.
+    const body = await request.arrayBuffer();
+    init.body = body.byteLength > 0 ? body : undefined;
   }
 
   const upstream = await fetch(targetUrl, init);
