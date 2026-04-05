@@ -27,7 +27,7 @@ export default function BlogPage() {
           </div>
           {role === 'admin' && (
             <Link
-              href="/admin/dashboard"
+              href="/admin/dashboard/blog"
               className="rounded-full border border-[#e5e4ef] px-4 py-2 text-sm font-semibold text-[#1a132f] hover:bg-[#f6f6f6]"
             >
               Manage posts
