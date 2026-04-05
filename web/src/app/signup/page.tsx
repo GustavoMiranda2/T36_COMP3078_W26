@@ -4,6 +4,20 @@ import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiRegister } from '../api';
 
+function formatCanadianPhone(value: string): string {
+  const digitsOnly = value.replace(/\D/g, '');
+  const digits = digitsOnly.startsWith('1') ? digitsOnly.slice(0, 11) : digitsOnly.slice(0, 10);
+  const hasCountryCode = digits.length > 10 && digits.startsWith('1');
+  const localDigits = hasCountryCode ? digits.slice(1) : digits;
+
+  if (!localDigits) return hasCountryCode ? '+1 ' : '';
+  if (localDigits.length <= 3) return `${hasCountryCode ? '+1 ' : ''}(${localDigits}`;
+  if (localDigits.length <= 6) {
+    return `${hasCountryCode ? '+1 ' : ''}(${localDigits.slice(0, 3)}) ${localDigits.slice(3)}`;
+  }
+  return `${hasCountryCode ? '+1 ' : ''}(${localDigits.slice(0, 3)}) ${localDigits.slice(3, 6)}-${localDigits.slice(6, 10)}`;
+}
+
 export default function SignUpPage() {
   return (
     <Suspense
@@ -76,10 +90,12 @@ function SignUpContent() {
           <label className="text-sm font-semibold text-[#1a132f]">Phone</label>
           <input
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(formatCanadianPhone(e.target.value))}
             className="mt-1 w-full rounded-xl border border-[#e5e4ef] bg-white px-3 py-3 text-sm outline-none ring-[#5b4fe5]/40 focus:ring-2"
             type="tel"
-            placeholder="Phone number"
+            inputMode="numeric"
+            autoComplete="tel"
+            placeholder="+1 (437) 555-1234"
           />
         </div>
         <div>
