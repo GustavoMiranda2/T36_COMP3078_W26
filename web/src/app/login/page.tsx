@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '../session-context';
+import { siteConfig } from '../site-config';
 
 export default function LoginPage() {
   return (
@@ -81,14 +82,24 @@ function LoginContent() {
         </button>
       </form>
 
-      <div className="space-y-2 text-sm text-[#5a5872]">
-        <p>Need an account?</p>
-        <Link
+      <div className="flex items-center justify-between text-sm text-[#5a5872]">
+        <div className="space-y-2">
+          <p>Need an account?</p>
+          <Link
+            className="font-semibold text-[#5b4fe5] hover:underline"
+            href={search.get('next') ? `/signup?next=${encodeURIComponent(search.get('next') ?? '')}` : '/signup'}
+          >
+            Go to sign up
+          </Link>
+        </div>
+        <a
+          href={siteConfig.privacyPolicyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className="font-semibold text-[#5b4fe5] hover:underline"
-          href={search.get('next') ? `/signup?next=${encodeURIComponent(search.get('next') ?? '')}` : '/signup'}
         >
-          Go to sign up
-        </Link>
+          Privacy Policy
+        </a>
       </div>
     </div>
   );
