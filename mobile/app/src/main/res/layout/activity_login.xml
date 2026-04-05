@@ -146,6 +146,18 @@
                 android:text="Create client account" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/tvPrivacyPolicy"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_gravity="center_horizontal"
+            android:text="Privacy Policy"
+            android:textColor="@color/brand_muted"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textDecoration="underline" />
+
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
