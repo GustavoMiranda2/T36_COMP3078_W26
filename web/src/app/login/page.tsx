@@ -82,24 +82,25 @@ function LoginContent() {
         </button>
       </form>
 
-      <div className="flex items-center justify-between text-sm text-[#5a5872]">
-        <div className="space-y-2">
-          <p>Need an account?</p>
+      <div className="space-y-2 text-sm text-[#5a5872]">
+        <p>Need an account?</p>
+        <div className="flex items-center gap-2">
           <Link
             className="font-semibold text-[#5b4fe5] hover:underline"
             href={search.get('next') ? `/signup?next=${encodeURIComponent(search.get('next') ?? '')}` : '/signup'}
           >
             Go to sign up
           </Link>
+          <span className="text-[#5a5872]">|</span>
+          <a
+            href={siteConfig.privacyPolicyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#5a5872] underline underline-offset-2"
+          >
+            Privacy Policy
+          </a>
         </div>
-        <a
-          href={siteConfig.privacyPolicyUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-semibold text-[#5b4fe5] hover:underline"
-        >
-          Privacy Policy
-        </a>
       </div>
     </div>
   );
