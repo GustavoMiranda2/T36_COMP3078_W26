@@ -299,7 +299,7 @@ export default function AdminPortfolioPage() {
                   onEdit={() => startEdit(item)}
                 >
                   {item.is_featured_home ? (
-                    <span className="rounded-full bg-[#efeafe] px-3 py-1 text-xs font-semibold text-[#4f2bc7]">
+                    <span className="inline-flex items-center rounded-full bg-[#efeafe] px-3 py-1.5 text-xs font-semibold leading-none text-[#4f2bc7]">
                       Featured
                     </span>
                   ) : null}
