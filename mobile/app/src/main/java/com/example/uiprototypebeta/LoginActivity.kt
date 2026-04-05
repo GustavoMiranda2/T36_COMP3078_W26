@@ -1,6 +1,7 @@
 package com.brazwebdes.hairstylistbooking
 
 import android.content.Intent
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -94,6 +95,7 @@ class LoginActivity : AppCompatActivity() {
             startActivity(Intent(this, SignUpActivity::class.java))
         }
 
+        binding.tvPrivacyPolicy.paintFlags = binding.tvPrivacyPolicy.paintFlags or Paint.UNDERLINE_TEXT_FLAG
         binding.tvPrivacyPolicy.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)))
         }
