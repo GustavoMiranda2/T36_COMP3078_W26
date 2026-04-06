@@ -243,6 +243,9 @@ class BookingScheduleActivity : AppCompatActivity() {
                 },
                 onError = { message ->
                     runOnUiThread {
+                        if (handleAuthExpiry(message)) {
+                            return@runOnUiThread
+                        }
                         binding.btnConfirmSlot.isEnabled = true
                         binding.btnConfirmSlot.text = "Confirm new time"
                         Toast.makeText(this, "Failed: $message", Toast.LENGTH_LONG).show()
@@ -265,6 +268,9 @@ class BookingScheduleActivity : AppCompatActivity() {
                 },
                 onError = { message ->
                     runOnUiThread {
+                        if (handleAuthExpiry(message)) {
+                            return@runOnUiThread
+                        }
                         binding.btnConfirmSlot.isEnabled = true
                         binding.btnConfirmSlot.text = "Confirm booking"
                         Toast.makeText(this, "Failed: $message", Toast.LENGTH_LONG).show()

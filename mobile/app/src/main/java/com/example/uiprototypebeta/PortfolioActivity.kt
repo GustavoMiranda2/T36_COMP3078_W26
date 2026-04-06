@@ -325,6 +325,9 @@ class PortfolioActivity : BaseDrawerActivity() {
             },
             onError = { message ->
                 runOnUiThread {
+                    if (handleAuthExpiry(message)) {
+                        return@runOnUiThread
+                    }
                     submitButton.isEnabled = true
                     submitButton.text = "Submit testimonial"
                     submitMessage.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))

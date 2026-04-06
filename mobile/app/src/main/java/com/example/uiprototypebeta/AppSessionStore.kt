@@ -11,6 +11,7 @@ object AppSessionStore {
     private const val keyDisplayName = "display_name"
     private const val keyUserId = "user_id"
     private const val keyEmail = "email"
+    private const val keyVersionCode = "last_seen_version_code"
     private const val roleUser = "user"
     private const val roleAdmin = "admin"
 
@@ -28,7 +29,13 @@ object AppSessionStore {
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
+        enforceCurrentAppVersion(context)
         restore(context)
+    }
+
+    fun enforceCurrentAppVersion(context: Context = requireContext()): Boolean {
+        appContext = context.applicationContext
+        return clearAuthForAppUpdate(context)
     }
 
     fun restore(context: Context = requireContext()) {
@@ -45,7 +52,7 @@ object AppSessionStore {
         pendingSession = null
 
         if (access.isNullOrBlank() || refresh.isNullOrBlank()) {
-            clearStored(context)
+            clearStoredAuth(context)
             return
         }
 
@@ -62,7 +69,7 @@ object AppSessionStore {
         }
 
         if (pendingSession == null) {
-            clearStored(context)
+            clearStoredAuth(context)
         }
     }
 
@@ -95,7 +102,8 @@ object AppSessionStore {
 
     fun clear(context: Context = requireContext()) {
         appContext = context.applicationContext
-        clearStored(context)
+        clearStoredAuth(context)
+        WebSessionStore.clear(context)
     }
 
     fun hasPendingSession(): Boolean = pendingSession != null
@@ -122,10 +130,36 @@ object AppSessionStore {
         appContext?.let { prefs(it).edit().putString(keyAccessToken, access).apply() }
     }
 
-    private fun clearStored(context: Context) {
-        prefs(context).edit().clear().apply()
+    private fun clearStoredAuth(context: Context) {
+        prefs(context).edit()
+            .remove(keyRole)
+            .remove(keyAccessToken)
+            .remove(keyRefreshToken)
+            .remove(keyDisplayName)
+            .remove(keyUserId)
+            .remove(keyEmail)
+            .putInt(keyVersionCode, BuildConfig.VERSION_CODE)
+            .commit()
         pendingSession = null
         clearInMemory()
+    }
+
+    private fun clearAuthForAppUpdate(context: Context): Boolean {
+        val sharedPrefs = prefs(context)
+        val currentVersionCode = BuildConfig.VERSION_CODE
+        val hasVersionMarker = sharedPrefs.contains(keyVersionCode)
+        val previousVersionCode =
+            if (hasVersionMarker) sharedPrefs.getInt(keyVersionCode, currentVersionCode) else null
+        val shouldResetPersistedState =
+            !hasVersionMarker || previousVersionCode != currentVersionCode
+
+        if (shouldResetPersistedState) {
+            clearStoredAuth(context)
+            WebSessionStore.clear(context)
+        }
+
+        sharedPrefs.edit().putInt(keyVersionCode, currentVersionCode).commit()
+        return shouldResetPersistedState
     }
 
     private fun persistSession(context: Context, session: StoredSession) {
@@ -137,6 +171,7 @@ object AppSessionStore {
             .putString(keyDisplayName, session.displayName)
             .putString(keyUserId, session.userId)
             .putString(keyEmail, session.email)
+            .putInt(keyVersionCode, BuildConfig.VERSION_CODE)
             .apply()
     }
 

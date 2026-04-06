@@ -6,6 +6,7 @@
 
     <application
         android:name=".BookingApplication"
+        android:allowBackup="false"
         android:usesCleartextTraffic="${cleartextTrafficPermitted}"
         android:theme="@style/Theme.UIPrototype"
         android:label="@string/app_name"

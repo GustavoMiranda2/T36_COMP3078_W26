@@ -158,6 +158,9 @@ class UserDashboardActivity : BaseDrawerActivity() {
             },
             onError = { msg ->
                 runOnUiThread {
+                    if (handleAuthExpiry(msg)) {
+                        return@runOnUiThread
+                    }
                     tvNextBooking.text = "Unable to load"
                     Toast.makeText(this, "Failed to load appointments: $msg", Toast.LENGTH_LONG).show()
                 }
@@ -347,6 +350,9 @@ class UserDashboardActivity : BaseDrawerActivity() {
             },
             onError = { msg ->
                 runOnUiThread {
+                    if (handleAuthExpiry(msg)) {
+                        return@runOnUiThread
+                    }
                     Toast.makeText(this, "Failed to cancel: $msg", Toast.LENGTH_LONG).show()
                 }
             }
@@ -388,6 +394,9 @@ class UserDashboardActivity : BaseDrawerActivity() {
             },
             onError = { msg ->
                 runOnUiThread {
+                    if (handleAuthExpiry(msg)) {
+                        return@runOnUiThread
+                    }
                     btnDeleteAccount.isEnabled = true
                     btnDeleteAccount.text = "Delete account"
                     Toast.makeText(this, "Failed to delete account: $msg", Toast.LENGTH_LONG).show()

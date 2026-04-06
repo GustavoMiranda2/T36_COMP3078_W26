@@ -9,11 +9,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import org.json.JSONObject
@@ -26,6 +28,7 @@ class AdminDashboardActivity : BaseDrawerActivity() {
     private var injectedSession = false
     private var visitedProtectedPage = false
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var returningToPrimarySignIn = false
 
     private val filePickerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -69,6 +72,7 @@ class AdminDashboardActivity : BaseDrawerActivity() {
         webView.settings.loadsImagesAutomatically = true
         webView.settings.allowFileAccess = true
         webView.settings.allowContentAccess = true
+        webView.addJavascriptInterface(AndroidSessionBridge(), "AndroidSessionBridge")
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 progressBar.progress = newProgress
@@ -125,6 +129,10 @@ class AdminDashboardActivity : BaseDrawerActivity() {
 
                 if (injectedSession && !isLoginPage(url)) {
                     visitedProtectedPage = true
+                }
+
+                if (view != null) {
+                    injectMobileAdminWebGuards(view)
                 }
             }
         }
@@ -207,7 +215,115 @@ class AdminDashboardActivity : BaseDrawerActivity() {
         return data.data?.let { arrayOf(it) }
     }
 
+    private fun injectMobileAdminWebGuards(view: WebView) {
+        view.evaluateJavascript(
+            """
+            (() => {
+              const bridge = window.AndroidSessionBridge;
+              if (!bridge) return;
+              const targetUrl = ${jsString("${ApiClient.webBaseUrl}$pagePath")};
+
+              const clearSession = () => {
+                try {
+                  localStorage.removeItem('hb-access');
+                  localStorage.removeItem('hb-refresh');
+                  localStorage.removeItem('hb-role');
+                  localStorage.removeItem('hb-name');
+                } catch (_) {}
+              };
+
+              const hideHeader = () => {
+                const header = document.querySelector('header');
+                if (header instanceof HTMLElement) {
+                  header.style.display = 'none';
+                }
+              };
+
+              const notifyLogout = (reason) => {
+                if (reason === 'expired') {
+                  if (typeof bridge.onSessionExpired === 'function') {
+                    bridge.onSessionExpired();
+                  }
+                } else if (typeof bridge.onLogout === 'function') {
+                  bridge.onLogout();
+                }
+              };
+
+              const syncState = () => {
+                hideHeader();
+                const path = window.location.pathname || '';
+                const access = localStorage.getItem('hb-access');
+                const role = localStorage.getItem('hb-role');
+
+                if (path === '/login' || path === '/admin/login') {
+                  if (access && role === 'admin') {
+                    if (window.location.href !== targetUrl) {
+                      window.location.replace(targetUrl);
+                    }
+                  }
+                  return;
+                }
+
+                if (!access || role !== 'admin') {
+                  notifyLogout('expired');
+                }
+              };
+
+              if (!window.__hbMobileAdminGuardsInstalled) {
+                window.__hbMobileAdminGuardsInstalled = true;
+
+                const originalFetch = window.fetch.bind(window);
+                window.fetch = async (...args) => {
+                  const response = await originalFetch(...args);
+                  if (response.status === 401) {
+                    clearSession();
+                    setTimeout(() => notifyLogout('expired'), 0);
+                  }
+                  return response;
+                };
+
+                for (const method of ['pushState', 'replaceState']) {
+                  const original = history[method].bind(history);
+                  history[method] = (...args) => {
+                    const result = original(...args);
+                    setTimeout(syncState, 0);
+                    return result;
+                  };
+                }
+
+                window.addEventListener('popstate', () => setTimeout(syncState, 0));
+                window.addEventListener('pageshow', () => setTimeout(syncState, 0));
+                window.addEventListener('storage', () => setTimeout(syncState, 0));
+
+                document.addEventListener(
+                  'click',
+                  (event) => {
+                    const target = event.target instanceof Element ? event.target.closest('button') : null;
+                    const label = target?.textContent?.trim().toLowerCase() || '';
+                    if (target && label.includes('sign out')) {
+                      clearSession();
+                      setTimeout(() => notifyLogout('logout'), 0);
+                    }
+                  },
+                  true,
+                );
+
+                new MutationObserver(() => hideHeader()).observe(document.documentElement, {
+                  childList: true,
+                  subtree: true,
+                });
+              }
+
+              syncState();
+            })();
+            """.trimIndent(),
+            null
+        )
+    }
+
     private fun returnToPrimarySignIn() {
+        if (returningToPrimarySignIn) return
+        returningToPrimarySignIn = true
         AppSessionStore.clear(this)
         startActivity(Intent(this, LoginActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -227,6 +343,26 @@ class AdminDashboardActivity : BaseDrawerActivity() {
             return Intent(context, AdminDashboardActivity::class.java).apply {
                 putExtra(extraTitle, title)
                 putExtra(extraPath, path)
+            }
+        }
+    }
+
+    private inner class AndroidSessionBridge {
+        @JavascriptInterface
+        fun onLogout() {
+            runOnUiThread { returnToPrimarySignIn() }
+        }
+
+        @JavascriptInterface
+        fun onSessionExpired() {
+            runOnUiThread {
+                if (returningToPrimarySignIn) return@runOnUiThread
+                Toast.makeText(
+                    this@AdminDashboardActivity,
+                    "Session expired. Please sign in again.",
+                    Toast.LENGTH_LONG
+                ).show()
+                returnToPrimarySignIn()
             }
         }
     }

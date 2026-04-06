@@ -36,6 +36,7 @@ open class BaseDrawerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppSessionStore.enforceCurrentAppVersion(this)
         setContentView(R.layout.activity_drawer_base)
 
         drawerLayout = findViewById(R.id.drawerLayout)
@@ -90,6 +91,7 @@ open class BaseDrawerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        AppSessionStore.enforceCurrentAppVersion(this)
         syncAuthUi()
     }
 
